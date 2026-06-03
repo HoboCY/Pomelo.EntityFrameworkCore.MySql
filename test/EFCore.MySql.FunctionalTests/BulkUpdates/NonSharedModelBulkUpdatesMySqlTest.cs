@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore.BulkUpdates;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.TestUtilities;
 using MySqlConnector;
 using Pomelo.EntityFrameworkCore.MySql.FunctionalTests.TestUtilities;
@@ -7,7 +8,7 @@ using Xunit;
 
 namespace Pomelo.EntityFrameworkCore.MySql.FunctionalTests.BulkUpdates;
 
-public class NonSharedModelBulkUpdatesMySqlTest : NonSharedModelBulkUpdatesRelationalTestBase
+public class NonSharedModelBulkUpdatesMySqlTest(NonSharedFixture fixture) : NonSharedModelBulkUpdatesRelationalTestBase(fixture)
 {
     protected override ITestStoreFactory TestStoreFactory
         => MySqlTestStoreFactory.Instance;
@@ -63,9 +64,11 @@ WHERE `b`.`Title` LIKE 'Arthur%'
         await base.Update_non_owned_property_on_entity_with_owned(async);
 
         AssertSql(
-"""
+            """
+@p='SomeValue' (Size = 4000)
+
 UPDATE `Owner` AS `o`
-SET `o`.`Title` = 'SomeValue'
+SET `o`.`Title` = @p
 """);
     }
 
@@ -85,10 +88,10 @@ SET `o`.`Title` = CONCAT(COALESCE(`o`.`Title`, ''), '_Suffix')
         await base.Update_owned_and_non_owned_properties_with_table_sharing(async);
 
         AssertSql(
-"""
+            """
 UPDATE `Owner` AS `o`
-SET `o`.`OwnedReference_Number` = CHAR_LENGTH(`o`.`Title`),
-    `o`.`Title` = COALESCE(CAST(`o`.`OwnedReference_Number` AS char), '')
+SET `o`.`Title` = COALESCE(CAST(`o`.`OwnedReference_Number` AS char), ''),
+    `o`.`OwnedReference_Number` = CHAR_LENGTH(`o`.`Title`)
 """);
     }
 
@@ -108,11 +111,11 @@ SET `b`.`CreationTimestamp` = TIMESTAMP '2020-01-01 00:00:00'
         await base.Update_non_main_table_in_entity_with_entity_splitting(async);
 
         AssertSql(
-"""
+            """
 UPDATE `Blogs` AS `b`
 INNER JOIN `BlogsPart1` AS `b0` ON `b`.`Id` = `b0`.`Id`
-SET `b0`.`Rating` = CHAR_LENGTH(`b0`.`Title`),
-    `b0`.`Title` = CAST(`b0`.`Rating` AS char)
+SET `b0`.`Title` = CAST(`b0`.`Rating` AS char),
+    `b0`.`Rating` = CHAR_LENGTH(`b0`.`Title`)
 """);
     }
 
@@ -151,10 +154,12 @@ WHERE `o`.`Id` = 1
         await base.Update_non_owned_property_on_entity_with_owned_in_join(async);
 
         AssertSql(
-"""
+            """
+@p='NewValue' (Size = 4000)
+
 UPDATE `Owner` AS `o`
 INNER JOIN `Owner` AS `o0` ON `o`.`Id` = `o0`.`Id`
-SET `o`.`Title` = 'NewValue'
+SET `o`.`Title` = @p
 """);
     }
 
@@ -163,10 +168,12 @@ SET `o`.`Title` = 'NewValue'
         await base.Replace_ColumnExpression_in_column_setter(async);
 
         AssertSql(
-"""
+            """
+@p='SomeValue' (Size = 4000)
+
 UPDATE `Owner` AS `o`
 INNER JOIN `OwnedCollection` AS `o0` ON `o`.`Id` = `o0`.`OwnerId`
-SET `o0`.`Value` = 'SomeValue'
+SET `o0`.`Value` = @p
 """);
     }
 
