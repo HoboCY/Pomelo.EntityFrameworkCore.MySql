@@ -48,6 +48,11 @@ namespace Pomelo.EntityFrameworkCore.MySql.Query.Internal
                 Dependencies.SqlExpressionFactory,
                 _options).Process(queryExpression, parametersDecorator);
 
+            // MySQL/MariaDB do not support expressions (e.g. LEAST/GREATEST, which EF Core 10 can generate when combining
+            // nested Skip/Take) in the LIMIT/OFFSET clauses. Evaluate them to a constant now that parameter values are known.
+            queryExpression = new MySqlLimitOffsetInliningExpressionVisitor(Dependencies.SqlExpressionFactory)
+                .Process(queryExpression, parametersDecorator);
+
             // Run the compatibility checks as late in the query pipeline (before the actual SQL translation happens) as reasonable.
             queryExpression = new MySqlCompatibilityExpressionVisitor(_options).Visit(queryExpression);
 

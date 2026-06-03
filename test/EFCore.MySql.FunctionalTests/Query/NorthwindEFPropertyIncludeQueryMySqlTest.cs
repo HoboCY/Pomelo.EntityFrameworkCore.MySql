@@ -821,28 +821,21 @@ ORDER BY `c`.`City`, `c`.`CustomerID`, `o`.`OrderID`
         await base.Multi_level_includes_are_applied_with_take(async);
 
         AssertSql(
-"""
-@__p_0='1'
-
-SELECT `c1`.`CustomerID`, `s`.`OrderID`, `s`.`CustomerID`, `s`.`EmployeeID`, `s`.`OrderDate`, `s`.`OrderID0`, `s`.`ProductID`, `s`.`Discount`, `s`.`Quantity`, `s`.`UnitPrice`
+            """
+SELECT `c0`.`CustomerID`, `s`.`OrderID`, `s`.`CustomerID`, `s`.`EmployeeID`, `s`.`OrderDate`, `s`.`OrderID0`, `s`.`ProductID`, `s`.`Discount`, `s`.`Quantity`, `s`.`UnitPrice`
 FROM (
-    SELECT `c0`.`CustomerID`
-    FROM (
-        SELECT `c`.`CustomerID`
-        FROM `Customers` AS `c`
-        WHERE `c`.`CustomerID` LIKE 'A%'
-        ORDER BY `c`.`CustomerID`
-        LIMIT @__p_0
-    ) AS `c0`
-    ORDER BY `c0`.`CustomerID`
+    SELECT `c`.`CustomerID`
+    FROM `Customers` AS `c`
+    WHERE `c`.`CustomerID` LIKE 'A%'
+    ORDER BY `c`.`CustomerID`
     LIMIT 1
-) AS `c1`
+) AS `c0`
 LEFT JOIN (
     SELECT `o`.`OrderID`, `o`.`CustomerID`, `o`.`EmployeeID`, `o`.`OrderDate`, `o0`.`OrderID` AS `OrderID0`, `o0`.`ProductID`, `o0`.`Discount`, `o0`.`Quantity`, `o0`.`UnitPrice`
     FROM `Orders` AS `o`
     LEFT JOIN `Order Details` AS `o0` ON `o`.`OrderID` = `o0`.`OrderID`
-) AS `s` ON `c1`.`CustomerID` = `s`.`CustomerID`
-ORDER BY `c1`.`CustomerID`, `s`.`OrderID`, `s`.`OrderID0`
+) AS `s` ON `c0`.`CustomerID` = `s`.`CustomerID`
+ORDER BY `c0`.`CustomerID`, `s`.`OrderID`, `s`.`OrderID0`
 """);
     }
 
@@ -1006,28 +999,23 @@ ORDER BY `o1`.`OrderID`, `s`.`OrderID`, `s`.`ProductID`
         await base.Multi_level_includes_are_applied_with_skip_take(async);
 
         AssertSql(
-"""
-@__p_0='1'
+            """
+@p='1'
 
-SELECT `c1`.`CustomerID`, `s`.`OrderID`, `s`.`CustomerID`, `s`.`EmployeeID`, `s`.`OrderDate`, `s`.`OrderID0`, `s`.`ProductID`, `s`.`Discount`, `s`.`Quantity`, `s`.`UnitPrice`
+SELECT `c0`.`CustomerID`, `s`.`OrderID`, `s`.`CustomerID`, `s`.`EmployeeID`, `s`.`OrderDate`, `s`.`OrderID0`, `s`.`ProductID`, `s`.`Discount`, `s`.`Quantity`, `s`.`UnitPrice`
 FROM (
-    SELECT `c0`.`CustomerID`
-    FROM (
-        SELECT `c`.`CustomerID`
-        FROM `Customers` AS `c`
-        WHERE `c`.`CustomerID` LIKE 'A%'
-        ORDER BY `c`.`CustomerID`
-        LIMIT @__p_0 OFFSET @__p_0
-    ) AS `c0`
-    ORDER BY `c0`.`CustomerID`
-    LIMIT 1
-) AS `c1`
+    SELECT `c`.`CustomerID`
+    FROM `Customers` AS `c`
+    WHERE `c`.`CustomerID` LIKE 'A%'
+    ORDER BY `c`.`CustomerID`
+    LIMIT 1 OFFSET @p
+) AS `c0`
 LEFT JOIN (
     SELECT `o`.`OrderID`, `o`.`CustomerID`, `o`.`EmployeeID`, `o`.`OrderDate`, `o0`.`OrderID` AS `OrderID0`, `o0`.`ProductID`, `o0`.`Discount`, `o0`.`Quantity`, `o0`.`UnitPrice`
     FROM `Orders` AS `o`
     LEFT JOIN `Order Details` AS `o0` ON `o`.`OrderID` = `o0`.`OrderID`
-) AS `s` ON `c1`.`CustomerID` = `s`.`CustomerID`
-ORDER BY `c1`.`CustomerID`, `s`.`OrderID`, `s`.`OrderID0`
+) AS `s` ON `c0`.`CustomerID` = `s`.`CustomerID`
+ORDER BY `c0`.`CustomerID`, `s`.`OrderID`, `s`.`OrderID0`
 """);
     }
 
