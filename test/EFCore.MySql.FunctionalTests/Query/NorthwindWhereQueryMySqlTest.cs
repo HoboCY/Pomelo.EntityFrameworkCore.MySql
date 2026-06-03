@@ -372,11 +372,13 @@ WHERE @Concat = `c`.`CompanyName`
                 assertEmpty: true);
 
             AssertSql(
-                @"@__Concat_0='1234' (Size = 40)
+                """
+@Concat='1234' (Size = 40)
 
 SELECT `c`.`CustomerID`
 FROM `Customers` AS `c`
-WHERE @__Concat_0 = `c`.`CompanyName`");
+WHERE @Concat = `c`.`CompanyName`
+""");
         }
 
         [ConditionalTheory]
@@ -391,11 +393,13 @@ WHERE @__Concat_0 = `c`.`CompanyName`");
                 assertEmpty: true);
 
             AssertSql(
-                @"@__Concat_0='1' (Size = 40)
+                """
+@Concat='1' (Size = 40)
 
 SELECT `c`.`CustomerID`
 FROM `Customers` AS `c`
-WHERE @__Concat_0 = `c`.`CompanyName`");
+WHERE @Concat = `c`.`CompanyName`
+""");
         }
 
         // TODO: 9.0
