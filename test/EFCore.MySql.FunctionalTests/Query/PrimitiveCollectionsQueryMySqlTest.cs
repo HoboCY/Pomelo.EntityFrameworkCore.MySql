@@ -1705,12 +1705,12 @@ WHERE `p`.`Id` IN (2, 999, 1000)
         var rowSql = AppConfig.ServerVersion.Supports.ValuesWithRows ? "ROW" : string.Empty;
 
         AssertSql(
-            """
+            $"""
 SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`Enum`, `p`.`Enums`, `p`.`Int`, `p`.`Ints`, `p`.`NullableInt`, `p`.`NullableInts`, `p`.`NullableString`, `p`.`NullableStrings`, `p`.`NullableWrappedId`, `p`.`NullableWrappedIdWithNullableComparer`, `p`.`String`, `p`.`Strings`, `p`.`WrappedId`
 FROM `PrimitiveCollectionsEntity` AS `p`
 WHERE EXISTS (
     SELECT 1
-    FROM (SELECT CAST(2 AS signed) AS `Value` UNION ALL VALUES ROW(999), ROW(1000)) AS `i`
+    FROM (SELECT CAST(2 AS signed) AS `Value` UNION ALL VALUES {rowSql}(999), {rowSql}(1000)) AS `i`
     WHERE `i`.`Value` > 0)
 """);
     }
@@ -1722,12 +1722,12 @@ WHERE EXISTS (
         var rowSql = AppConfig.ServerVersion.Supports.ValuesWithRows ? "ROW" : string.Empty;
 
         AssertSql(
-            """
+            $"""
 SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`Enum`, `p`.`Enums`, `p`.`Int`, `p`.`Ints`, `p`.`NullableInt`, `p`.`NullableInts`, `p`.`NullableString`, `p`.`NullableStrings`, `p`.`NullableWrappedId`, `p`.`NullableWrappedIdWithNullableComparer`, `p`.`String`, `p`.`Strings`, `p`.`WrappedId`
 FROM `PrimitiveCollectionsEntity` AS `p`
 WHERE (
     SELECT COUNT(*)
-    FROM (SELECT CAST(2 AS signed) AS `Value` UNION ALL VALUES ROW(999), ROW(1000)) AS `i`
+    FROM (SELECT CAST(2 AS signed) AS `Value` UNION ALL VALUES {rowSql}(999), {rowSql}(1000)) AS `i`
     WHERE `i`.`Value` > `p`.`Id`) = 2
 """);
     }
@@ -2316,13 +2316,15 @@ ORDER BY `p`.`Id`
     {
      await base.Values_of_enum_casted_to_underlying_value();
 
+     var rowSql = AppConfig.ServerVersion.Supports.ValuesWithRows ? "ROW" : string.Empty;
+
      AssertSql(
-         """
+         $"""
 SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`Enum`, `p`.`Enums`, `p`.`Int`, `p`.`Ints`, `p`.`NullableInt`, `p`.`NullableInts`, `p`.`NullableString`, `p`.`NullableStrings`, `p`.`NullableWrappedId`, `p`.`NullableWrappedIdWithNullableComparer`, `p`.`String`, `p`.`Strings`, `p`.`WrappedId`
 FROM `PrimitiveCollectionsEntity` AS `p`
 WHERE (
     SELECT COUNT(*)
-    FROM (SELECT CAST(0 AS signed) AS `Value` UNION ALL VALUES ROW(1), ROW(2), ROW(3)) AS `v`
+    FROM (SELECT CAST(0 AS signed) AS `Value` UNION ALL VALUES {rowSql}(1), {rowSql}(2), {rowSql}(3)) AS `v`
     WHERE `v`.`Value` = `p`.`Int`) > 0
 """);
     }

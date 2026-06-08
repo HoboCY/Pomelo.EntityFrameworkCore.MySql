@@ -55,7 +55,10 @@ namespace Pomelo.EntityFrameworkCore.MySql.Storage.Internal
             => literal.Replace("'", "''");
 
         protected override string GenerateNonNullSqlLiteral(object value)
-            => $"'{EscapeSqlLiteral((string)value)}'";
+            // MySQL and MariaDB store structural types in a native `json` column. Emitting a JSON-typed literal
+            // (instead of a plain quoted string) ensures the value is treated as JSON by comparisons and JSON
+            // functions, avoiding implicit string-to-JSON conversion mismatches.
+            => $"CAST('{EscapeSqlLiteral((string)value)}' AS json)";
 
         protected override RelationalTypeMapping Clone(RelationalTypeMappingParameters parameters)
             => new MySqlStructuralJsonTypeMapping(parameters);

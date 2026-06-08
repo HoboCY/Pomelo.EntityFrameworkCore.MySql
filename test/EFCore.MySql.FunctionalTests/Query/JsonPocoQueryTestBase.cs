@@ -72,12 +72,12 @@ WHERE `j`.`Id` = @p
 LIMIT 1
 """,
                 //
-                """
+                $$$"""
 @expected='{"Name":"Joe","Age":25,"ID":"00000000-0000-0000-0000-000000000000","is_vip":false,"Statistics":{"Visits":4,"Purchases":3,"Nested":{"SomeProperty":10,"SomeNullableInt":20,"IntArray":[3,4],"SomeNullableGuid":"d5f2685d-e5c4-47e5-97aa-d0266154eb2d"}},"Orders":[{"Price":99.5,"ShippingAddress":"Some address 1","ShippingDate":"2019-10-01T00:00:00"},{"Price":23.1,"ShippingAddress":"Some address 2","ShippingDate":"2019-10-10T00:00:00"}]}' (Size = 4000)
 
 SELECT `j`.`Id`, `j`.`Customer`, `j`.`ToplevelArray`
 FROM `JsonEntities` AS `j`
-WHERE `j`.`Customer` = CAST(@expected AS json)
+WHERE `j`.`Customer` = {{{InsertJsonConvert("@expected")}}}
 LIMIT 2
 """);
         }

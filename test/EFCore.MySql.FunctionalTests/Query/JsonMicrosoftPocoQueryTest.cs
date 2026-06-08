@@ -30,12 +30,12 @@ namespace Pomelo.EntityFrameworkCore.MySql.FunctionalTests.Query
 
             Assert.Equal(1, count);
             AssertSql(
-                """
+                $$"""
 @element='{"Name":"Joe","Age":25}' (Nullable = false) (Size = 4000)
 
 SELECT COUNT(*)
 FROM `JsonEntities` AS `j`
-WHERE JSON_CONTAINS(`j`.`Customer`, CAST(@element AS json))
+WHERE JSON_CONTAINS(`j`.`Customer`, {{InsertJsonConvert("@element")}})
 """);
         }
 

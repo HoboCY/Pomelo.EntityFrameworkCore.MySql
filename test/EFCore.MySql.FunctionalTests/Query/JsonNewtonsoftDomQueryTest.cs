@@ -86,14 +86,12 @@ WHERE `j`.`Id` = @p
 LIMIT 1
 """,
                 //
-                """
-@expected='{"ID":"00000000-0000-0000-0000-000000000000","Age":25,"Name":"Joe","IsVip":false,"Orders":[{"Price":99.5,"ShippingDate":"2019-10-01","ShippingAddress":"Some address 1"},{"Price":23.1,"ShippingDate":"2019-10-10","ShippingAddress":"Some address 2"}],"Statistics":{"Nested":{"IntArray":[3,4],"SomeProperty":10,"SomeNullableInt":20,"SomeNullableGuid":"d5f2685d-e5c4-47e5-97aa-d0266154eb2d"},"Visits":4,"Purchases":3}}' (Size = 4000)
+                $@"{InsertJsonDocument(@"@expected='{""ID"":""00000000-0000-0000-0000-000000000000"",""Age"":25,""Name"":""Joe"",""IsVip"":false,""Orders"":[{""Price"":99.5,""ShippingDate"":""2019-10-01"",""ShippingAddress"":""Some address 1""},{""Price"":23.1,""ShippingDate"":""2019-10-10"",""ShippingAddress"":""Some address 2""}],""Statistics"":{""Nested"":{""IntArray"":[3,4],""SomeProperty"":10,""SomeNullableInt"":20,""SomeNullableGuid"":""d5f2685d-e5c4-47e5-97aa-d0266154eb2d""},""Visits"":4,""Purchases"":3}}'", @"@expected='{""Name"":""Joe"",""Age"":25,""ID"":""00000000-0000-0000-0000-000000000000"",""IsVip"":false,""Statistics"":{""Visits"":4,""Purchases"":3,""Nested"":{""SomeProperty"":10,""SomeNullableInt"":20,""SomeNullableGuid"":""d5f2685d-e5c4-47e5-97aa-d0266154eb2d"",""IntArray"":[3,4]}},""Orders"":[{""Price"":99.5,""ShippingAddress"":""Some address 1"",""ShippingDate"":""2019-10-01""},{""Price"":23.1,""ShippingAddress"":""Some address 2"",""ShippingDate"":""2019-10-10""}]}'")} (Size = 4000)
 
 SELECT `j`.`Id`, `j`.`CustomerJObject`, `j`.`CustomerJToken`
 FROM `JsonEntities` AS `j`
-WHERE `j`.`CustomerJObject` = CAST(@expected AS json)
-LIMIT 2
-""");
+WHERE `j`.`CustomerJObject` = {InsertJsonConvert("@expected")}
+LIMIT 2");
         }
 
         [Fact]
@@ -114,14 +112,12 @@ WHERE `j`.`Id` = @p
 LIMIT 1
 """,
                 //
-                """
-@expected='{"ID":"00000000-0000-0000-0000-000000000000","Age":25,"Name":"Joe","IsVip":false,"Orders":[{"Price":99.5,"ShippingDate":"2019-10-01","ShippingAddress":"Some address 1"},{"Price":23.1,"ShippingDate":"2019-10-10","ShippingAddress":"Some address 2"}],"Statistics":{"Nested":{"IntArray":[3,4],"SomeProperty":10,"SomeNullableInt":20,"SomeNullableGuid":"d5f2685d-e5c4-47e5-97aa-d0266154eb2d"},"Visits":4,"Purchases":3}}' (Size = 4000)
+                $@"{InsertJsonDocument(@"@expected='{""ID"":""00000000-0000-0000-0000-000000000000"",""Age"":25,""Name"":""Joe"",""IsVip"":false,""Orders"":[{""Price"":99.5,""ShippingDate"":""2019-10-01"",""ShippingAddress"":""Some address 1""},{""Price"":23.1,""ShippingDate"":""2019-10-10"",""ShippingAddress"":""Some address 2""}],""Statistics"":{""Nested"":{""IntArray"":[3,4],""SomeProperty"":10,""SomeNullableInt"":20,""SomeNullableGuid"":""d5f2685d-e5c4-47e5-97aa-d0266154eb2d""},""Visits"":4,""Purchases"":3}}'", @"@expected='{""Name"":""Joe"",""Age"":25,""ID"":""00000000-0000-0000-0000-000000000000"",""IsVip"":false,""Statistics"":{""Visits"":4,""Purchases"":3,""Nested"":{""SomeProperty"":10,""SomeNullableInt"":20,""SomeNullableGuid"":""d5f2685d-e5c4-47e5-97aa-d0266154eb2d"",""IntArray"":[3,4]}},""Orders"":[{""Price"":99.5,""ShippingAddress"":""Some address 1"",""ShippingDate"":""2019-10-01""},{""Price"":23.1,""ShippingAddress"":""Some address 2"",""ShippingDate"":""2019-10-10""}]}'")} (Size = 4000)
 
 SELECT `j`.`Id`, `j`.`CustomerJObject`, `j`.`CustomerJToken`
 FROM `JsonEntities` AS `j`
-WHERE `j`.`CustomerJToken` = CAST(@expected AS json)
-LIMIT 2
-""");
+WHERE `j`.`CustomerJToken` = {InsertJsonConvert("@expected")}
+LIMIT 2");
         }
 
         [Fact]
@@ -369,12 +365,12 @@ LIMIT 2");
 
             Assert.Equal(1, count);
             AssertSql(
-                """
+                $$"""
 @element='{"Name":"Joe","Age":-1}' (Size = 4000)
 
 SELECT COUNT(*)
 FROM `JsonEntities` AS `j`
-WHERE JSON_OVERLAPS(`j`.`CustomerJToken`, CAST(@element AS json))
+WHERE JSON_OVERLAPS(`j`.`CustomerJToken`, {{InsertJsonConvert("@element")}})
 """);
         }
 
@@ -404,12 +400,12 @@ WHERE JSON_OVERLAPS(`j`.`CustomerJToken`, '{""Name"": ""Joe"", ""Age"": -1}')");
 
             Assert.Equal(1, count);
             AssertSql(
-                """
+                $$"""
 @element='[3,-1]' (Size = 4000)
 
 SELECT COUNT(*)
 FROM `JsonEntities` AS `j`
-WHERE JSON_OVERLAPS(JSON_EXTRACT(`j`.`CustomerJToken`, '$.Statistics.Nested.IntArray'), CAST(@element AS json))
+WHERE JSON_OVERLAPS(JSON_EXTRACT(`j`.`CustomerJToken`, '$.Statistics.Nested.IntArray'), {{InsertJsonConvert("@element")}})
 """);
         }
 
@@ -438,12 +434,12 @@ WHERE JSON_OVERLAPS(JSON_EXTRACT(`j`.`CustomerJToken`, '$.Statistics.Nested.IntA
 
             Assert.Equal(1, count);
             AssertSql(
-                """
+                $$"""
 @element='{"Name":"Joe","Age":25}' (Size = 4000)
 
 SELECT COUNT(*)
 FROM `JsonEntities` AS `j`
-WHERE JSON_CONTAINS(`j`.`CustomerJToken`, CAST(@element AS json))
+WHERE JSON_CONTAINS(`j`.`CustomerJToken`, {{InsertJsonConvert("@element")}})
 """);
         }
 

@@ -67,7 +67,7 @@ namespace Pomelo.EntityFrameworkCore.MySql.Query.Internal
                         when constant.Value is int intValue:
                             return intValue == 0;
                         case SqlParameterExpression parameter:
-                            return _parametersDecorator.GetAndDisableCaching()[parameter.Name] is int value && value == 0;
+                            return _parametersDecorator.GetAndDisableCaching()[parameter.InvariantName] is int value && value == 0;
 
                         default:
                             return false;

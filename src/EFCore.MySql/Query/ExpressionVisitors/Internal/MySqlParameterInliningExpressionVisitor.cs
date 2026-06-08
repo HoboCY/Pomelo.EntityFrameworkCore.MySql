@@ -100,7 +100,7 @@ public class MySqlParameterInliningExpressionVisitor : ExpressionVisitor
         return new MySqlInlinedParameterExpression(
             sqlParameterExpression,
             (SqlConstantExpression)_sqlExpressionFactory.Constant(
-                _parametersDecorator.GetAndDisableCaching()[sqlParameterExpression.Name],
+                _parametersDecorator.GetAndDisableCaching()[sqlParameterExpression.InvariantName],
                 sqlParameterExpression.TypeMapping));
     }
 
