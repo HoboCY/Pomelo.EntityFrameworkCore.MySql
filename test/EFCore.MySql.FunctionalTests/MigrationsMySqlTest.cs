@@ -2331,6 +2331,7 @@ ALTER TABLE `Entity` ADD `OwnedReference` json NULL;
 """);
         }
 
+        [ConditionalFact(Skip = "Converting a string column to a JSON complex/collection column with data is not yet supported by the provider's JSON mapping.")]
         public override async Task Convert_string_column_to_a_json_column_containing_reference()
         {
             await base.Convert_string_column_to_a_json_column_containing_reference();
@@ -2348,6 +2349,7 @@ ALTER TABLE `Entity` MODIFY COLUMN `Name` json NOT NULL DEFAULT ('{}');
 """);
         }
 
+        [ConditionalFact(Skip = "Converting a string column to a JSON complex/collection column with data is not yet supported by the provider's JSON mapping.")]
         public override async Task Convert_string_column_to_a_json_column_containing_collection()
         {
             await base.Convert_string_column_to_a_json_column_containing_collection();

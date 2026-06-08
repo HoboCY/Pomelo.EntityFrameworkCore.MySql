@@ -2304,6 +2304,7 @@ ORDER BY `p`.`Id`
      AssertSql();
     }
 
+    [ConditionalFact(Skip = "MySQL/MariaDB do not allow a column or expression in LIMIT/OFFSET; EF Core 10 translates array-index-by-column to a subquery with OFFSET <column>, which is not supported.")]
     public override async Task Inline_collection_index_Column_with_EF_Constant()
     {
      await base.Inline_collection_index_Column_with_EF_Constant();

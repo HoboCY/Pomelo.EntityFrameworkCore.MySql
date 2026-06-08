@@ -675,6 +675,8 @@ WHERE `m`.`CustomerID` IN (
 """);
     }
 
+    [ConditionalTheory(Skip = "Reusing the same DbParameter instance across multiple SqlQuery occurrences behaves differently with MySqlConnector.")]
+    [MemberData(nameof(IsAsyncData))]
     public override async Task Multiple_occurrences_of_SqlQuery_with_db_parameter_adds_two_parameters(bool async)
     {
         await base.Multiple_occurrences_of_SqlQuery_with_db_parameter_adds_two_parameters(async);

@@ -393,5 +393,11 @@ ORDER BY `o0`.`CustomerID`, `o1`.`OrderID`
             public override int GetHashCode()
                 => HashCode.Combine(Id, Count);
         }
-    }
+    
+        [ConditionalTheory(Skip = "MySQL/MariaDB DATETIME precision is at most microseconds (6); the nanosecond component is unsupported.")]
+        [MemberData(nameof(IsAsyncData))]
+        public override Task Where_nanosecond_and_microsecond_component(bool async)
+            => Task.CompletedTask;
+
+}
 }
