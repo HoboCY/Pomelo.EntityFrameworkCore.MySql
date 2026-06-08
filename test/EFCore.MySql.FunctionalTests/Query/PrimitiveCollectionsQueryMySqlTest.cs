@@ -91,8 +91,8 @@ WHERE (
         if (AppConfig.ServerVersion.Supports.ValuesWithRows)
         {
             AssertSql(
-"""
-SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`Enum`, `p`.`Enums`, `p`.`Int`, `p`.`Ints`, `p`.`NullableInt`, `p`.`NullableInts`, `p`.`NullableString`, `p`.`NullableStrings`, `p`.`String`, `p`.`Strings`
+                """
+SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`Enum`, `p`.`Enums`, `p`.`Int`, `p`.`Ints`, `p`.`NullableInt`, `p`.`NullableInts`, `p`.`NullableString`, `p`.`NullableStrings`, `p`.`NullableWrappedId`, `p`.`NullableWrappedIdWithNullableComparer`, `p`.`String`, `p`.`Strings`, `p`.`WrappedId`
 FROM `PrimitiveCollectionsEntity` AS `p`
 WHERE (
     SELECT COUNT(*)
@@ -125,8 +125,8 @@ WHERE (
         if (AppConfig.ServerVersion.Supports.ValuesWithRows)
         {
             AssertSql(
-"""
-SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`Enum`, `p`.`Enums`, `p`.`Int`, `p`.`Ints`, `p`.`NullableInt`, `p`.`NullableInts`, `p`.`NullableString`, `p`.`NullableStrings`, `p`.`String`, `p`.`Strings`
+                """
+SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`Enum`, `p`.`Enums`, `p`.`Int`, `p`.`Ints`, `p`.`NullableInt`, `p`.`NullableInts`, `p`.`NullableString`, `p`.`NullableStrings`, `p`.`NullableWrappedId`, `p`.`NullableWrappedIdWithNullableComparer`, `p`.`String`, `p`.`Strings`, `p`.`WrappedId`
 FROM `PrimitiveCollectionsEntity` AS `p`
 WHERE (
     SELECT COUNT(*)
@@ -1710,7 +1710,7 @@ SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`
 FROM `PrimitiveCollectionsEntity` AS `p`
 WHERE EXISTS (
     SELECT 1
-    FROM (SELECT CAST(2 AS signed) AS `Value` UNION ALL VALUES (999), (1000)) AS `i`
+    FROM (SELECT CAST(2 AS signed) AS `Value` UNION ALL VALUES ROW(999), ROW(1000)) AS `i`
     WHERE `i`.`Value` > 0)
 """);
     }
@@ -1727,7 +1727,7 @@ SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`
 FROM `PrimitiveCollectionsEntity` AS `p`
 WHERE (
     SELECT COUNT(*)
-    FROM (SELECT CAST(2 AS signed) AS `Value` UNION ALL VALUES (999), (1000)) AS `i`
+    FROM (SELECT CAST(2 AS signed) AS `Value` UNION ALL VALUES ROW(999), ROW(1000)) AS `i`
     WHERE `i`.`Value` > `p`.`Id`) = 2
 """);
     }
@@ -1981,14 +1981,14 @@ WHERE GREATEST(30, `p`.`Int`, @i) = 35
             await base.Inline_collection_of_nullable_value_type_Min();
 
             AssertSql(
-"""
-@__i_0='25' (Nullable = true)
+                """
+@i='25' (Nullable = true)
 
-SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`Enum`, `p`.`Enums`, `p`.`Int`, `p`.`Ints`, `p`.`NullableInt`, `p`.`NullableInts`, `p`.`NullableString`, `p`.`NullableStrings`, `p`.`String`, `p`.`Strings`
+SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`Enum`, `p`.`Enums`, `p`.`Int`, `p`.`Ints`, `p`.`NullableInt`, `p`.`NullableInts`, `p`.`NullableString`, `p`.`NullableStrings`, `p`.`NullableWrappedId`, `p`.`NullableWrappedIdWithNullableComparer`, `p`.`String`, `p`.`Strings`, `p`.`WrappedId`
 FROM `PrimitiveCollectionsEntity` AS `p`
 WHERE (
     SELECT MIN(`v`.`Value`)
-    FROM (SELECT CAST(30 AS signed) AS `Value` UNION ALL VALUES ROW(`p`.`Int`), ROW(@__i_0)) AS `v`) = 25
+    FROM (SELECT CAST(30 AS signed) AS `Value` UNION ALL VALUES ROW(`p`.`Int`), ROW(@i)) AS `v`) = 25
 """);
         }
         else
@@ -2006,14 +2006,14 @@ WHERE (
             await base.Inline_collection_of_nullable_value_type_Max();
 
             AssertSql(
-"""
-@__i_0='35' (Nullable = true)
+                """
+@i='35' (Nullable = true)
 
-SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`Enum`, `p`.`Enums`, `p`.`Int`, `p`.`Ints`, `p`.`NullableInt`, `p`.`NullableInts`, `p`.`NullableString`, `p`.`NullableStrings`, `p`.`String`, `p`.`Strings`
+SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`Enum`, `p`.`Enums`, `p`.`Int`, `p`.`Ints`, `p`.`NullableInt`, `p`.`NullableInts`, `p`.`NullableString`, `p`.`NullableStrings`, `p`.`NullableWrappedId`, `p`.`NullableWrappedIdWithNullableComparer`, `p`.`String`, `p`.`Strings`, `p`.`WrappedId`
 FROM `PrimitiveCollectionsEntity` AS `p`
 WHERE (
     SELECT MAX(`v`.`Value`)
-    FROM (SELECT CAST(30 AS signed) AS `Value` UNION ALL VALUES ROW(`p`.`Int`), ROW(@__i_0)) AS `v`) = 35
+    FROM (SELECT CAST(30 AS signed) AS `Value` UNION ALL VALUES ROW(`p`.`Int`), ROW(@i)) AS `v`) = 35
 """);
         }
         else
@@ -2031,8 +2031,8 @@ WHERE (
             await base.Inline_collection_of_nullable_value_type_with_null_Min();
 
             AssertSql(
-"""
-SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`Enum`, `p`.`Enums`, `p`.`Int`, `p`.`Ints`, `p`.`NullableInt`, `p`.`NullableInts`, `p`.`NullableString`, `p`.`NullableStrings`, `p`.`String`, `p`.`Strings`
+                """
+SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`Enum`, `p`.`Enums`, `p`.`Int`, `p`.`Ints`, `p`.`NullableInt`, `p`.`NullableInts`, `p`.`NullableString`, `p`.`NullableStrings`, `p`.`NullableWrappedId`, `p`.`NullableWrappedIdWithNullableComparer`, `p`.`String`, `p`.`Strings`, `p`.`WrappedId`
 FROM `PrimitiveCollectionsEntity` AS `p`
 WHERE (
     SELECT MIN(`v`.`Value`)
@@ -2054,8 +2054,8 @@ WHERE (
             await base.Inline_collection_of_nullable_value_type_with_null_Max();
 
             AssertSql(
-"""
-SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`Enum`, `p`.`Enums`, `p`.`Int`, `p`.`Ints`, `p`.`NullableInt`, `p`.`NullableInts`, `p`.`NullableString`, `p`.`NullableStrings`, `p`.`String`, `p`.`Strings`
+                """
+SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`Enum`, `p`.`Enums`, `p`.`Int`, `p`.`Ints`, `p`.`NullableInt`, `p`.`NullableInts`, `p`.`NullableString`, `p`.`NullableStrings`, `p`.`NullableWrappedId`, `p`.`NullableWrappedIdWithNullableComparer`, `p`.`String`, `p`.`Strings`, `p`.`WrappedId`
 FROM `PrimitiveCollectionsEntity` AS `p`
 WHERE (
     SELECT MAX(`v`.`Value`)
@@ -2322,7 +2322,7 @@ SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`
 FROM `PrimitiveCollectionsEntity` AS `p`
 WHERE (
     SELECT COUNT(*)
-    FROM (SELECT CAST(0 AS signed) AS `Value` UNION ALL VALUES (1), (2), (3)) AS `v`
+    FROM (SELECT CAST(0 AS signed) AS `Value` UNION ALL VALUES ROW(1), ROW(2), ROW(3)) AS `v`
     WHERE `v`.`Value` = `p`.`Int`) > 0
 """);
     }

@@ -493,7 +493,7 @@ SELECT `t`.`Id`
 FROM `TestEntity` AS `t`
 WHERE (
     SELECT COUNT(*)
-    FROM (SELECT CAST(2 AS signed) AS `Value` UNION ALL VALUES (999)) AS `i`
+    FROM (SELECT CAST(2 AS signed) AS `Value` UNION ALL VALUES ROW(999)) AS `i`
     WHERE `i`.`Value` > `t`.`Id`) = 1
 """);
                 break;
@@ -516,7 +516,7 @@ SELECT `t`.`Id`
 FROM `TestEntity` AS `t`
 WHERE (
     SELECT COUNT(*)
-    FROM (SELECT @ids1 AS `Value` UNION ALL VALUES (@ids2)) AS `i`
+    FROM (SELECT @ids1 AS `Value` UNION ALL VALUES ROW(@ids2)) AS `i`
     WHERE `i`.`Value` > `t`.`Id`) = 1
 """);
                 break;
@@ -579,7 +579,7 @@ SELECT `t`.`Id`
 FROM `TestEntity` AS `t`
 WHERE (
     SELECT COUNT(*)
-    FROM (SELECT CAST(2 AS signed) AS `Value` UNION ALL VALUES (999)) AS `i`
+    FROM (SELECT CAST(2 AS signed) AS `Value` UNION ALL VALUES ROW(999)) AS `i`
     WHERE `i`.`Value` > `t`.`Id`) = 1
 """);
     }
@@ -623,7 +623,7 @@ SELECT `t`.`Id`
 FROM `TestEntity` AS `t`
 WHERE (
     SELECT COUNT(*)
-    FROM (SELECT @ids1 AS `Value` UNION ALL VALUES (@ids2)) AS `i`
+    FROM (SELECT @ids1 AS `Value` UNION ALL VALUES ROW(@ids2)) AS `i`
     WHERE `i`.`Value` > `t`.`Id`) = 1
 """);
     }

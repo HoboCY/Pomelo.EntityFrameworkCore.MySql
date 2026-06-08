@@ -77,7 +77,7 @@ LIMIT 1
 
 SELECT `j`.`Id`, `j`.`Customer`, `j`.`ToplevelArray`
 FROM `JsonEntities` AS `j`
-WHERE `j`.`Customer` = @expected
+WHERE `j`.`Customer` = CAST(@expected AS json)
 LIMIT 2
 """);
         }

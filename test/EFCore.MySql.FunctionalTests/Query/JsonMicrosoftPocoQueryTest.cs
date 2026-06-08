@@ -35,7 +35,7 @@ namespace Pomelo.EntityFrameworkCore.MySql.FunctionalTests.Query
 
 SELECT COUNT(*)
 FROM `JsonEntities` AS `j`
-WHERE JSON_CONTAINS(`j`.`Customer`, @element)
+WHERE JSON_CONTAINS(`j`.`Customer`, CAST(@element AS json))
 """);
         }
 
