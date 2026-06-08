@@ -2048,7 +2048,7 @@ SELECT ROW_COUNT();
             await base.Create_table_with_complex_type_with_required_properties_on_derived_entity_in_TPH();
 
             AssertSql(
-"""
+                """
 CREATE TABLE `Contacts` (
     `Id` int NOT NULL AUTO_INCREMENT,
     `Discriminator` varchar(8) CHARACTER SET utf8mb4 NOT NULL,
@@ -2057,6 +2057,9 @@ CREATE TABLE `Contacts` (
     `MyComplex_Prop` longtext NULL,
     `MyComplex_MyNestedComplex_Bar` datetime(6) NULL,
     `MyComplex_MyNestedComplex_Foo` int NULL,
+    `MyComplex_Nested_Bar` datetime(6) NULL,
+    `MyComplex_Nested_Foo` int NULL,
+    `NestedCollection` json NULL,
     CONSTRAINT `PK_Contacts` PRIMARY KEY (`Id`)
 ) CHARACTER SET=utf8mb4;
 """);

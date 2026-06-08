@@ -35,7 +35,7 @@ public class DateOnlyQueryMySqlTest : DateOnlyQueryMySqlTestBase<DateOnlyQueryMy
 
         AssertSql(
             """
-@todayDateTime_DayNumber='739769'
+@todayDateTime_DayNumber='739774'
 
 SELECT `i`.`IceCreamId`, `i`.`BestServedBefore`, `i`.`Name`
 FROM `IceCream` AS `i`
@@ -141,7 +141,7 @@ LIMIT 2");
 
         AssertSql(
             """
-@todayDateOnly='06/03/2026' (DbType = Date)
+@todayDateOnly='06/08/2026' (DbType = Date)
 
 SELECT `i`.`IceCreamId`, `i`.`BestServedBefore`, `i`.`Name`
 FROM `IceCream` AS `i`
