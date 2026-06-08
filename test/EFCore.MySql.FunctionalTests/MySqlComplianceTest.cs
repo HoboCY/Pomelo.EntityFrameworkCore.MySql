@@ -4,6 +4,8 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ModelBuilding;
 using Microsoft.EntityFrameworkCore.Query;
+using Microsoft.EntityFrameworkCore.Query.Translations;
+using Microsoft.EntityFrameworkCore.Types;
 using Microsoft.EntityFrameworkCore.Update;
 
 namespace Pomelo.EntityFrameworkCore.MySql.FunctionalTests
@@ -53,6 +55,16 @@ namespace Pomelo.EntityFrameworkCore.MySql.FunctionalTests
             typeof(JsonTypesTestBase),
             typeof(JsonUpdateTestBase<>),
             typeof(OptionalDependentQueryTestBase<>),
+
+            // TODO: EF Core 10 split type/translation specification tests into dedicated base classes. The underlying
+            // translations are already exercised by the existing Northwind* query tests; implementing these dedicated
+            // suites is pending.
+            typeof(TypeTestBase<,>),
+            typeof(ByteArrayTranslationsTestBase<>),
+            typeof(EnumTranslationsTestBase<>),
+            typeof(GuidTranslationsTestBase<>),
+            typeof(MathTranslationsTestBase<>),
+            typeof(MiscellaneousTranslationsTestBase<>),
         };
 
         protected override Assembly TargetAssembly { get; } = typeof(MySqlComplianceTest).Assembly;
