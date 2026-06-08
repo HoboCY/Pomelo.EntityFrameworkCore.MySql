@@ -14,7 +14,7 @@ using Xunit.Abstractions;
 
 namespace Microsoft.EntityFrameworkCore.Query.Associations.OwnedNavigations;
 
-public class OwnedNavigationsPrimitiveCollectionTestBase(OwnedNavigationsMySqlFixture fixture, ITestOutputHelper testOutputHelper)
+public class OwnedNavigationsPrimitiveCollectionMySqlTest(OwnedNavigationsMySqlFixture fixture, ITestOutputHelper testOutputHelper)
     : OwnedNavigationsPrimitiveCollectionRelationalTestBase<OwnedNavigationsMySqlFixture>(fixture, testOutputHelper)
 {
     public override async Task Count()
