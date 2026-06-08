@@ -2241,6 +2241,91 @@ ORDER BY `p`.`Id`
 """);
     }
 
+    public override async Task Parameter_collection_ImmutableArray_of_ints_Contains_int()
+    {
+     await base.Parameter_collection_ImmutableArray_of_ints_Contains_int();
+
+     AssertSql();
+    }
+
+    public override async Task Parameter_collection_of_structs_Contains_struct()
+    {
+     await base.Parameter_collection_of_structs_Contains_struct();
+
+     AssertSql();
+    }
+
+    public override async Task Parameter_collection_of_structs_Contains_nullable_struct()
+    {
+     await base.Parameter_collection_of_structs_Contains_nullable_struct();
+
+     AssertSql();
+    }
+
+    public override async Task Parameter_collection_of_structs_Contains_nullable_struct_with_nullable_comparer()
+    {
+     await base.Parameter_collection_of_structs_Contains_nullable_struct_with_nullable_comparer();
+
+     AssertSql();
+    }
+
+    public override async Task Parameter_collection_of_nullable_structs_Contains_struct()
+    {
+     await base.Parameter_collection_of_nullable_structs_Contains_struct();
+
+     AssertSql();
+    }
+
+    public override async Task Parameter_collection_of_nullable_structs_Contains_nullable_struct()
+    {
+     await base.Parameter_collection_of_nullable_structs_Contains_nullable_struct();
+
+     AssertSql();
+    }
+
+    public override async Task Parameter_collection_of_nullable_structs_Contains_nullable_struct_with_nullable_comparer()
+    {
+     await base.Parameter_collection_of_nullable_structs_Contains_nullable_struct_with_nullable_comparer();
+
+     AssertSql();
+    }
+
+    public override async Task Parameter_collection_Count_with_huge_number_of_values()
+    {
+     await base.Parameter_collection_Count_with_huge_number_of_values();
+
+     AssertSql();
+    }
+
+    public override async Task Parameter_collection_of_ints_Contains_int_with_huge_number_of_values()
+    {
+     await base.Parameter_collection_of_ints_Contains_int_with_huge_number_of_values();
+
+     AssertSql();
+    }
+
+    public override async Task Inline_collection_index_Column_with_EF_Constant()
+    {
+     await base.Inline_collection_index_Column_with_EF_Constant();
+
+     AssertSql();
+    }
+
+    public override async Task Values_of_enum_casted_to_underlying_value()
+    {
+     await base.Values_of_enum_casted_to_underlying_value();
+
+     AssertSql(
+         """
+SELECT `p`.`Id`, `p`.`Bool`, `p`.`Bools`, `p`.`DateTime`, `p`.`DateTimes`, `p`.`Enum`, `p`.`Enums`, `p`.`Int`, `p`.`Ints`, `p`.`NullableInt`, `p`.`NullableInts`, `p`.`NullableString`, `p`.`NullableStrings`, `p`.`NullableWrappedId`, `p`.`NullableWrappedIdWithNullableComparer`, `p`.`String`, `p`.`Strings`, `p`.`WrappedId`
+FROM `PrimitiveCollectionsEntity` AS `p`
+WHERE (
+    SELECT COUNT(*)
+    FROM (SELECT CAST(0 AS signed) AS `Value` UNION ALL VALUES (1), (2), (3)) AS `v`
+    WHERE `v`.`Value` = `p`.`Int`) > 0
+""");
+    }
+
     [ConditionalFact]
     public virtual void Check_all_tests_overridden()
         => MySqlTestHelpers.AssertAllMethodsOverridden(GetType());
