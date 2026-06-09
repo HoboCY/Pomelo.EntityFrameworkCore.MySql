@@ -926,18 +926,19 @@ LIMIT @p
         await base.Update_Where_Skip_Take_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
-@__p_1='4'
-@__p_0='2'
+            """
+@p0='4'
+@p='2'
+@p1='Updated' (Size = 30)
 
 UPDATE `Customers` AS `c0`
 INNER JOIN (
     SELECT `c`.`CustomerID`
     FROM `Customers` AS `c`
     WHERE `c`.`CustomerID` LIKE 'F%'
-    LIMIT @__p_1 OFFSET @__p_0
+    LIMIT @p0 OFFSET @p
 ) AS `c1` ON `c0`.`CustomerID` = `c1`.`CustomerID`
-SET `c0`.`ContactName` = 'Updated'
+SET `c0`.`ContactName` = @p1
 """);
     }
 
@@ -1445,14 +1446,16 @@ WHERE `c`.`CustomerID` LIKE 'F%'
         await base.Update_with_cross_apply_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
+@p='Updated' (Size = 30)
+
 UPDATE `Customers` AS `c`
 JOIN LATERAL (
     SELECT 1
     FROM `Orders` AS `o`
     WHERE (`o`.`OrderID` < 10300) AND (EXTRACT(year FROM `o`.`OrderDate`) < CHAR_LENGTH(`c`.`ContactName`))
 ) AS `o0` ON TRUE
-SET `c`.`ContactName` = 'Updated'
+SET `c`.`ContactName` = @p
 WHERE `c`.`CustomerID` LIKE 'F%'
 """);
     }
@@ -1462,14 +1465,16 @@ WHERE `c`.`CustomerID` LIKE 'F%'
         await base.Update_with_outer_apply_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
+@p='Updated' (Size = 30)
+
 UPDATE `Customers` AS `c`
 LEFT JOIN LATERAL (
     SELECT 1
     FROM `Orders` AS `o`
     WHERE (`o`.`OrderID` < 10300) AND (EXTRACT(year FROM `o`.`OrderDate`) < CHAR_LENGTH(`c`.`ContactName`))
 ) AS `o0` ON TRUE
-SET `c`.`ContactName` = 'Updated'
+SET `c`.`ContactName` = @p
 WHERE `c`.`CustomerID` LIKE 'F%'
 """);
     }
@@ -1503,7 +1508,9 @@ WHERE `c`.`CustomerID` LIKE 'F%'
         await base.Update_with_cross_join_cross_apply_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
+@p='Updated' (Size = 30)
+
 UPDATE `Customers` AS `c`
 CROSS JOIN (
     SELECT 1
@@ -1515,7 +1522,7 @@ JOIN LATERAL (
     FROM `Orders` AS `o`
     WHERE (`o`.`OrderID` < 10300) AND (EXTRACT(year FROM `o`.`OrderDate`) < CHAR_LENGTH(`c`.`ContactName`))
 ) AS `o0` ON TRUE
-SET `c`.`ContactName` = 'Updated'
+SET `c`.`ContactName` = @p
 WHERE `c`.`CustomerID` LIKE 'F%'
 """);
     }
@@ -1525,7 +1532,9 @@ WHERE `c`.`CustomerID` LIKE 'F%'
         await base.Update_with_cross_join_outer_apply_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
+@p='Updated' (Size = 30)
+
 UPDATE `Customers` AS `c`
 CROSS JOIN (
     SELECT 1
@@ -1537,7 +1546,7 @@ LEFT JOIN LATERAL (
     FROM `Orders` AS `o`
     WHERE (`o`.`OrderID` < 10300) AND (EXTRACT(year FROM `o`.`OrderDate`) < CHAR_LENGTH(`c`.`ContactName`))
 ) AS `o0` ON TRUE
-SET `c`.`ContactName` = 'Updated'
+SET `c`.`ContactName` = @p
 WHERE `c`.`CustomerID` LIKE 'F%'
 """);
     }

@@ -268,14 +268,34 @@ FROM `RootEntity` AS `r`
     {
         await base.Select_subquery_required_related_FirstOrDefault(queryTrackingBehavior);
 
-        AssertSql();
+        AssertSql(
+            """
+SELECT `r1`.`RequiredAssociate_RequiredNestedAssociate_Id`, `r1`.`RequiredAssociate_RequiredNestedAssociate_Int`, `r1`.`RequiredAssociate_RequiredNestedAssociate_Ints`, `r1`.`RequiredAssociate_RequiredNestedAssociate_Name`, `r1`.`RequiredAssociate_RequiredNestedAssociate_String`
+FROM `RootEntity` AS `r`
+LEFT JOIN LATERAL (
+    SELECT `r0`.`RequiredAssociate_RequiredNestedAssociate_Id`, `r0`.`RequiredAssociate_RequiredNestedAssociate_Int`, `r0`.`RequiredAssociate_RequiredNestedAssociate_Ints`, `r0`.`RequiredAssociate_RequiredNestedAssociate_Name`, `r0`.`RequiredAssociate_RequiredNestedAssociate_String`
+    FROM `RootEntity` AS `r0`
+    ORDER BY `r0`.`Id`
+    LIMIT 1
+) AS `r1` ON TRUE
+""");
     }
 
     public override async Task Select_subquery_optional_related_FirstOrDefault(QueryTrackingBehavior queryTrackingBehavior)
     {
         await base.Select_subquery_optional_related_FirstOrDefault(queryTrackingBehavior);
 
-        AssertSql();
+        AssertSql(
+            """
+SELECT `r1`.`OptionalAssociate_RequiredNestedAssociate_Id`, `r1`.`OptionalAssociate_RequiredNestedAssociate_Int`, `r1`.`OptionalAssociate_RequiredNestedAssociate_Ints`, `r1`.`OptionalAssociate_RequiredNestedAssociate_Name`, `r1`.`OptionalAssociate_RequiredNestedAssociate_String`
+FROM `RootEntity` AS `r`
+LEFT JOIN LATERAL (
+    SELECT `r0`.`OptionalAssociate_RequiredNestedAssociate_Id`, `r0`.`OptionalAssociate_RequiredNestedAssociate_Int`, `r0`.`OptionalAssociate_RequiredNestedAssociate_Ints`, `r0`.`OptionalAssociate_RequiredNestedAssociate_Name`, `r0`.`OptionalAssociate_RequiredNestedAssociate_String`
+    FROM `RootEntity` AS `r0`
+    ORDER BY `r0`.`Id`
+    LIMIT 1
+) AS `r1` ON TRUE
+""");
     }
 
     #endregion Subquery

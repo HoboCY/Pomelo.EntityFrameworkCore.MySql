@@ -368,14 +368,38 @@ ORDER BY `r`.`Id`, `a`.`Id`, `n`.`Id`, `n0`.`Id`, `a0`.`Id`, `n1`.`Id`, `n2`.`Id
     {
         await base.Select_subquery_required_related_FirstOrDefault(queryTrackingBehavior);
 
-        AssertSql();
+        AssertSql(
+            """
+SELECT `s`.`Id`, `s`.`CollectionAssociateId`, `s`.`Int`, `s`.`Ints`, `s`.`Name`, `s`.`String`
+FROM `RootEntity` AS `r`
+LEFT JOIN LATERAL (
+    SELECT `n`.`Id`, `n`.`CollectionAssociateId`, `n`.`Int`, `n`.`Ints`, `n`.`Name`, `n`.`String`
+    FROM `RootEntity` AS `r0`
+    INNER JOIN `AssociateType` AS `a` ON `r0`.`RequiredAssociateId` = `a`.`Id`
+    INNER JOIN `NestedAssociateType` AS `n` ON `a`.`RequiredNestedAssociateId` = `n`.`Id`
+    ORDER BY `r0`.`Id`
+    LIMIT 1
+) AS `s` ON TRUE
+""");
     }
 
     public override async Task Select_subquery_optional_related_FirstOrDefault(QueryTrackingBehavior queryTrackingBehavior)
     {
         await base.Select_subquery_optional_related_FirstOrDefault(queryTrackingBehavior);
 
-        AssertSql();
+        AssertSql(
+            """
+SELECT `s`.`Id`, `s`.`CollectionAssociateId`, `s`.`Int`, `s`.`Ints`, `s`.`Name`, `s`.`String`
+FROM `RootEntity` AS `r`
+LEFT JOIN LATERAL (
+    SELECT `n`.`Id`, `n`.`CollectionAssociateId`, `n`.`Int`, `n`.`Ints`, `n`.`Name`, `n`.`String`
+    FROM `RootEntity` AS `r0`
+    LEFT JOIN `AssociateType` AS `a` ON `r0`.`OptionalAssociateId` = `a`.`Id`
+    LEFT JOIN `NestedAssociateType` AS `n` ON `a`.`RequiredNestedAssociateId` = `n`.`Id`
+    ORDER BY `r0`.`Id`
+    LIMIT 1
+) AS `s` ON TRUE
+""");
     }
 
     #endregion Subquery

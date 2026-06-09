@@ -335,7 +335,17 @@ FROM `PolygonEntity` AS `p`
             await base.Distance_with_null_check(async);
 
             AssertSql(
-                """
+                AppConfig.ServerVersion.Supports.SpatialDistanceSphereFunction
+                    ? """
+@point='0x0000000001010000000000000000000000000000000000F03F' (DbType = Binary)
+
+SELECT `p`.`Id`, CASE
+    WHEN ST_SRID(`p`.`Point`) = 4326 THEN ST_Distance_Sphere(`p`.`Point`, @point)
+    ELSE ST_Distance(`p`.`Point`, @point)
+END AS `Distance`
+FROM `PointEntity` AS `p`
+"""
+                    : """
 @point='0x0000000001010000000000000000000000000000000000F03F' (DbType = Binary)
 
 SELECT `p`.`Id`, CASE
@@ -354,7 +364,17 @@ FROM `PointEntity` AS `p`
             await base.Distance_with_cast_to_nullable(async);
 
             AssertSql(
-                """
+                AppConfig.ServerVersion.Supports.SpatialDistanceSphereFunction
+                    ? """
+@point='0x0000000001010000000000000000000000000000000000F03F' (DbType = Binary)
+
+SELECT `p`.`Id`, CASE
+    WHEN ST_SRID(`p`.`Point`) = 4326 THEN ST_Distance_Sphere(`p`.`Point`, @point)
+    ELSE ST_Distance(`p`.`Point`, @point)
+END AS `Distance`
+FROM `PointEntity` AS `p`
+"""
+                    : """
 @point='0x0000000001010000000000000000000000000000000000F03F' (DbType = Binary)
 
 SELECT `p`.`Id`, CASE
@@ -373,7 +393,17 @@ FROM `PointEntity` AS `p`
             await base.Distance_geometry(async);
 
             AssertSql(
-                """
+                AppConfig.ServerVersion.Supports.SpatialDistanceSphereFunction
+                    ? """
+@point='0x0000000001010000000000000000000000000000000000F03F' (DbType = Binary)
+
+SELECT `p`.`Id`, CASE
+    WHEN ST_SRID(`p`.`Geometry`) = 4326 THEN ST_Distance_Sphere(`p`.`Geometry`, @point)
+    ELSE ST_Distance(`p`.`Geometry`, @point)
+END AS `Distance`
+FROM `PointEntity` AS `p`
+"""
+                    : """
 @point='0x0000000001010000000000000000000000000000000000F03F' (DbType = Binary)
 
 SELECT `p`.`Id`, CASE
@@ -686,7 +716,20 @@ FROM `LineStringEntity` AS `l`
             await base.IsWithinDistance(async);
 
             AssertSql(
-                """
+                AppConfig.ServerVersion.Supports.SpatialDistanceSphereFunction
+                    ? """
+@point='0x0000000001010000000000000000000000000000000000F03F' (DbType = Binary)
+
+SELECT `p`.`Id`, CASE
+    WHEN CASE
+        WHEN ST_SRID(`p`.`Point`) = 4326 THEN ST_Distance_Sphere(`p`.`Point`, @point)
+        ELSE ST_Distance(`p`.`Point`, @point)
+    END <= 1.0 THEN TRUE
+    ELSE FALSE
+END AS `IsWithinDistance`
+FROM `PointEntity` AS `p`
+"""
+                    : """
 @point='0x0000000001010000000000000000000000000000000000F03F' (DbType = Binary)
 
 SELECT `p`.`Id`, CASE

@@ -134,9 +134,11 @@ ORDER BY `c`.`CustomerID`
             await base.GroupBy_group_Distinct_Select_Distinct_aggregate(async);
 
             AssertSql(
-                @"SELECT `o`.`CustomerID` AS `Key`, MAX(DISTINCT (`o`.`OrderDate`)) AS `Max`
+                """
+SELECT `o`.`CustomerID` AS `Key`, MAX(`o`.`OrderDate`) AS `Max`
 FROM `Orders` AS `o`
-GROUP BY `o`.`CustomerID`");
+GROUP BY `o`.`CustomerID`
+""");
         }
 
         public override async Task GroupBy_Property_Select_Average(bool async)
@@ -2601,7 +2603,17 @@ INNER JOIN (
             await base.GroupBy_aggregate_after_skip_0_take_0(async);
 
             AssertSql(
-                """
+                AppConfig.ServerVersion is Microsoft.EntityFrameworkCore.MySqlServerVersion
+                    ? """
+SELECT `o0`.`CustomerID` AS `Key`, COUNT(*) AS `Total`
+FROM (
+    SELECT `o`.`CustomerID`
+    FROM `Orders` AS `o`
+    WHERE FALSE
+) AS `o0`
+GROUP BY `o0`.`CustomerID`
+"""
+                    : """
 @p='0'
 
 SELECT `o0`.`CustomerID` AS `Key`, COUNT(*) AS `Total`
@@ -2619,7 +2631,15 @@ GROUP BY `o0`.`CustomerID`
             await base.GroupBy_skip_0_take_0_aggregate(async);
 
             AssertSql(
-                """
+                AppConfig.ServerVersion is Microsoft.EntityFrameworkCore.MySqlServerVersion
+                    ? """
+SELECT `o`.`CustomerID` AS `Key`, COUNT(*) AS `Total`
+FROM `Orders` AS `o`
+WHERE `o`.`OrderID` > 10500
+GROUP BY `o`.`CustomerID`
+HAVING FALSE
+"""
+                    : """
 @p='0'
 
 SELECT `o`.`CustomerID` AS `Key`, COUNT(*) AS `Total`

@@ -412,7 +412,19 @@ ORDER BY `r`.`Id`, `o`.`RootEntityId`, `o0`.`AssociateTypeRootEntityId`, `o1`.`A
 
         if (queryTrackingBehavior is not QueryTrackingBehavior.TrackAll)
         {
-            AssertSql();
+            AssertSql(
+                """
+SELECT `s`.`AssociateTypeRootEntityId`, `s`.`Id`, `s`.`Int`, `s`.`Ints`, `s`.`Name`, `s`.`String`
+FROM `RootEntity` AS `r`
+LEFT JOIN LATERAL (
+    SELECT `r2`.`AssociateTypeRootEntityId`, `r2`.`Id`, `r2`.`Int`, `r2`.`Ints`, `r2`.`Name`, `r2`.`String`
+    FROM `RootEntity` AS `r0`
+    LEFT JOIN `RequiredRelated` AS `r1` ON `r0`.`Id` = `r1`.`RootEntityId`
+    LEFT JOIN `RequiredRelated_RequiredNested` AS `r2` ON `r1`.`RootEntityId` = `r2`.`AssociateTypeRootEntityId`
+    ORDER BY `r0`.`Id`
+    LIMIT 1
+) AS `s` ON TRUE
+""");
         }
     }
 
@@ -422,7 +434,19 @@ ORDER BY `r`.`Id`, `o`.`RootEntityId`, `o0`.`AssociateTypeRootEntityId`, `o1`.`A
 
         if (queryTrackingBehavior is not QueryTrackingBehavior.TrackAll)
         {
-            AssertSql();
+            AssertSql(
+                """
+SELECT `s`.`AssociateTypeRootEntityId`, `s`.`Id`, `s`.`Int`, `s`.`Ints`, `s`.`Name`, `s`.`String`
+FROM `RootEntity` AS `r`
+LEFT JOIN LATERAL (
+    SELECT `o0`.`AssociateTypeRootEntityId`, `o0`.`Id`, `o0`.`Int`, `o0`.`Ints`, `o0`.`Name`, `o0`.`String`
+    FROM `RootEntity` AS `r0`
+    LEFT JOIN `OptionalRelated` AS `o` ON `r0`.`Id` = `o`.`RootEntityId`
+    LEFT JOIN `OptionalRelated_RequiredNested` AS `o0` ON `o`.`RootEntityId` = `o0`.`AssociateTypeRootEntityId`
+    ORDER BY `r0`.`Id`
+    LIMIT 1
+) AS `s` ON TRUE
+""");
         }
     }
 
