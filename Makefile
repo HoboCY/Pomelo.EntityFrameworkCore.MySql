@@ -11,7 +11,7 @@ SRC_PROJECTS    := \
 
 .DEFAULT_GOAL := help
 
-.PHONY: help restore build rebuild test functional-tests package clean
+.PHONY: help restore build rebuild test functional-tests package package-consumer clean
 
 help: ## List the available tasks (default)
 	@echo "Pomelo.EntityFrameworkCore.MySql -- available make tasks:"
@@ -41,6 +41,9 @@ package: ## Create the release NuGet packages in artifacts/packages
 	@echo ""
 	@echo "Release packages created in $(PACKAGE_OUTPUT):"
 	@ls -1 $(PACKAGE_OUTPUT)/*.nupkg
+
+package-consumer: ## Pack locally and run the external MySQL/MariaDB package consumer smoke test
+	./test/EFCore.MySql.PackageConsumer/scripts/package-consumer.sh
 
 clean: ## Remove build outputs and generated packages
 	dotnet clean $(SOLUTION) -c $(CONFIGURATION) || true
