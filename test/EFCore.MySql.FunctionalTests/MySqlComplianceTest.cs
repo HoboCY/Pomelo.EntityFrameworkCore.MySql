@@ -56,9 +56,10 @@ namespace Pomelo.EntityFrameworkCore.MySql.FunctionalTests
             typeof(JsonUpdateTestBase<>),
             typeof(OptionalDependentQueryTestBase<>),
 
-            // TODO: EF Core 10 added new specification test suites (JSON-based Associations [provider has its own JSON
-            // support], ComplexProperties, dedicated Translations/Temporal/Operators/Type suites). These are deferred;
-            // the relational Associations suites (Navigations, OwnedNavigations, *TableSplitting) ARE implemented.
+            // TODO: EF Core 10 added new specification test suites (JSON-based Associations, ComplexProperties,
+            // dedicated Translations/Temporal/Operators/Type suites). Focused public structural JSON coverage for
+            // persistence, querying, updates, and migrations lives in the ticket-specific tests; the broad
+            // association and translation families below remain deferred as separate suites.
             typeof(Microsoft.EntityFrameworkCore.LazyLoadProxyRelationalTestBase<>),
             typeof(Microsoft.EntityFrameworkCore.ModelBuilding.ModelBuilderTest.ComplexCollectionTestBase),
             typeof(Microsoft.EntityFrameworkCore.ModelBuilding.RelationalModelBuilderTest.RelationalComplexCollectionTestBase),
@@ -92,7 +93,6 @@ namespace Pomelo.EntityFrameworkCore.MySql.FunctionalTests
             typeof(Microsoft.EntityFrameworkCore.Query.Translations.Temporal.TimeOnlyTranslationsTestBase<>),
             typeof(Microsoft.EntityFrameworkCore.Query.Translations.Temporal.TimeSpanTranslationsTestBase<>),
             typeof(Microsoft.EntityFrameworkCore.Types.RelationalTypeTestBase<,>),
-            typeof(Microsoft.EntityFrameworkCore.Update.ComplexCollectionJsonUpdateTestBase<>),
 
             // TODO: EF Core 10 split type/translation specification tests into dedicated base classes. The underlying
             // translations are already exercised by the existing Northwind* query tests; implementing these dedicated
