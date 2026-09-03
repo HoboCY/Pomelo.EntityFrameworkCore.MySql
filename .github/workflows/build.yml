@@ -299,8 +299,12 @@ jobs:
         if: ${{ env.skipTests != 'true' }}
         shell: pwsh
         run: |
-          $migrationDirectory = Join-Path $PWD.Path 'test/EFCore.MySql.IntegrationTests/Migrations'
-          Get-ChildItem -Path $migrationDirectory -Filter "*.cs" -File -ErrorAction SilentlyContinue | Remove-Item -Force
+          $migrationDirectory = 'test/EFCore.MySql.IntegrationTests/Migrations'
+          $trackedMigrations = @(git ls-files -- ":(glob)$migrationDirectory/*.cs")
+          if ($LASTEXITCODE -ne 0) { throw 'git ls-files failed.' }
+          if ($trackedMigrations.Count -ne 0) { throw 'Refusing to run with tracked migration sources.' }
+          git clean -fX -- ":(glob)$migrationDirectory/*.cs"
+          if ($LASTEXITCODE -ne 0) { throw 'git clean failed.' }
           ./test/EFCore.MySql.IntegrationTests/scripts/legacy.ps1
       - name: Integration Tests - Building migrations with EF_DATABASE = pomelo_test2
         if: ${{ env.skipTests != 'true' }}

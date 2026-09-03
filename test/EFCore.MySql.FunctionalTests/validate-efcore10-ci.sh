@@ -103,7 +103,39 @@ require_step_literal() {
     || fail "$job_name/$step_name is missing: $literal"
 }
 
-require_step_literals_in_order() {
+run_body() {
+  local step="$1"
+
+  printf '%s\n' "$step" | awk '
+    /^        run:[[:space:]]*\|[[:space:]]*$/ {
+      in_run = 1
+      next
+    }
+    /^        run:[[:space:]]+/ {
+      line = $0
+      sub(/^        run:[[:space:]]+/, "", line)
+      print line
+      in_run = 0
+      next
+    }
+    in_run {
+      if ($0 !~ /^          /) {
+        if ($0 ~ /^[[:space:]]*$/) {
+          next
+        }
+        in_run = 0
+        next
+      }
+      line = $0
+      sub(/^          /, "", line)
+      if (line != "" && line !~ /^[[:space:]]/) {
+        print line
+      }
+    }
+  '
+}
+
+require_run_body_literals_in_order() {
   local job_name="$1"
   local step_name="$2"
   local step="$3"
@@ -111,20 +143,64 @@ require_step_literals_in_order() {
   local literal
 
   shift 3
+  local commands
+
+  commands="$(run_body "$step")"
+  [[ -n "$commands" ]] || fail "$job_name/$step_name has no executable run body"
 
   for literal in "$@"; do
     local line
 
-    line="$(printf '%s\n' "$step" | awk -v literal="$literal" -v previous_line="$previous_line" '
-      index($0, literal) && NR > previous_line {
+    line="$(printf '%s\n' "$commands" | awk -v literal="$literal" -v previous_line="$previous_line" '
+      $0 == literal && NR > previous_line {
         print NR
         exit
       }
     ')"
 
-    [[ -n "$line" ]] || fail "$job_name/$step_name is missing ordered command: $literal"
+    [[ -n "$line" ]] || fail "$job_name/$step_name is missing top-level run command: $literal"
     previous_line="$line"
   done
+}
+
+require_run_body_unique_command() {
+  local job_name="$1"
+  local step_name="$2"
+  local step="$3"
+  local marker="$4"
+  local expected_command="$5"
+  local commands
+
+  commands="$(run_body "$step")"
+  if printf '%s\n' "$commands" | awk -v marker="$marker" -v expected_command="$expected_command" '
+    index($0, marker) > 0 {
+      count++
+      if ($0 != expected_command) {
+        invalid = 1
+      }
+    }
+    END { exit(count == 1 && !invalid ? 0 : 1) }
+  '; then
+    return
+  fi
+  fail "$job_name/$step_name has an unexpected or repeated top-level command: $expected_command"
+}
+
+require_run_body_without_command() {
+  local job_name="$1"
+  local step_name="$2"
+  local step="$3"
+  local forbidden_command="$4"
+  local commands
+
+  commands="$(run_body "$step")"
+  if printf '%s\n' "$commands" | awk -v forbidden_command="$forbidden_command" '
+    index($0, forbidden_command) > 0 { found = 1 }
+    END { exit(found ? 1 : 0) }
+  '; then
+    return
+  fi
+  fail "$job_name/$step_name contains a forbidden top-level command: $forbidden_command"
 }
 
 require_run_command() {
@@ -324,10 +400,21 @@ require_step_literal BuildAndTest 'Build Solution' "$build_step" 'dotnet build -
 require_step_literal BuildAndTest 'Build Solution' "$build_step" 'shell: pwsh'
 set_variables_step="$(step_block "$build_job" 'Set additional variables')"
 require_step_literal BuildAndTest 'Set additional variables' "$set_variables_step" 'shell: pwsh'
-require_step_literal BuildAndTest 'Set additional variables' "$set_variables_step" '$functionalTestMaxParallelThreads = $os -eq '\''linux'\'' -and $databaseServerType -eq '\''mariadb'\'' ? 1 : 0'
-require_step_literal BuildAndTest 'Set additional variables' "$set_variables_step" 'echo "functionalTestMaxParallelThreads=$functionalTestMaxParallelThreads" >> $env:GITHUB_ENV'
+require_run_body_literals_in_order BuildAndTest 'Set additional variables' "$set_variables_step" \
+  '$functionalTestMaxParallelThreads = $os -eq '\''linux'\'' -and $databaseServerType -eq '\''mariadb'\'' ? 1 : 0' \
+  'echo "functionalTestMaxParallelThreads=$functionalTestMaxParallelThreads" >> $env:GITHUB_ENV'
+require_run_body_unique_command BuildAndTest 'Set additional variables' "$set_variables_step" \
+  '$functionalTestMaxParallelThreads = ' \
+  '$functionalTestMaxParallelThreads = $os -eq '\''linux'\'' -and $databaseServerType -eq '\''mariadb'\'' ? 1 : 0'
+require_run_body_unique_command BuildAndTest 'Set additional variables' "$set_variables_step" \
+  'echo "functionalTestMaxParallelThreads=' \
+  'echo "functionalTestMaxParallelThreads=$functionalTestMaxParallelThreads" >> $env:GITHUB_ENV'
 output_variables_step="$(step_block "$build_job" 'Output Variables')"
-require_step_literal BuildAndTest 'Output Variables' "$output_variables_step" 'echo "functionalTestMaxParallelThreads: ${{ env.functionalTestMaxParallelThreads }}"'
+require_run_body_literals_in_order BuildAndTest 'Output Variables' "$output_variables_step" \
+  'echo "functionalTestMaxParallelThreads: ${{ env.functionalTestMaxParallelThreads }}"'
+require_run_body_unique_command BuildAndTest 'Output Variables' "$output_variables_step" \
+  'echo "functionalTestMaxParallelThreads:' \
+  'echo "functionalTestMaxParallelThreads: ${{ env.functionalTestMaxParallelThreads }}"'
 audit_step="$(step_block "$build_job" 'EF Core 10 specification audit')"
 require_step_literal BuildAndTest 'EF Core 10 specification audit' "$audit_step" 'run: ./test/EFCore.MySql.FunctionalTests/audit-efcore10-spec-coverage.sh'
 require_step_literal BuildAndTest 'EF Core 10 specification audit' "$audit_step" 'shell: bash'
@@ -352,14 +439,30 @@ require_step_literal BuildAndTest 'Integration Tests - Compiled model' "$compile
 require_step_literal BuildAndTest 'Integration Tests - Compiled model' "$compiled_step" 'shell: pwsh'
 legacy_step="$(step_block "$build_job" 'Integration Tests - Legacy migrations')"
 require_step_literal BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" 'shell: pwsh'
-legacy_migration_directory='$migrationDirectory = Join-Path $PWD.Path '\''test/EFCore.MySql.IntegrationTests/Migrations'\'''
-legacy_migration_cleanup='Get-ChildItem -Path $migrationDirectory -Filter "*.cs" -File -ErrorAction SilentlyContinue | Remove-Item -Force'
+legacy_migration_directory='$migrationDirectory = '\''test/EFCore.MySql.IntegrationTests/Migrations'\'''
+legacy_tracked_migrations='$trackedMigrations = @(git ls-files -- ":(glob)$migrationDirectory/*.cs")'
+legacy_index_guard='if ($LASTEXITCODE -ne 0) { throw '\''git ls-files failed.'\'' }'
+legacy_tracked_guard='if ($trackedMigrations.Count -ne 0) { throw '\''Refusing to run with tracked migration sources.'\'' }'
+legacy_migration_cleanup='git clean -fX -- ":(glob)$migrationDirectory/*.cs"'
+legacy_cleanup_guard='if ($LASTEXITCODE -ne 0) { throw '\''git clean failed.'\'' }'
 legacy_script_path='./test/EFCore.MySql.IntegrationTests/scripts/legacy.ps1'
 require_step_literal BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" "$legacy_script_path"
-require_step_literals_in_order BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" \
+require_run_body_literals_in_order BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" \
   "$legacy_migration_directory" \
+  "$legacy_tracked_migrations" \
+  "$legacy_index_guard" \
+  "$legacy_tracked_guard" \
   "$legacy_migration_cleanup" \
+  "$legacy_cleanup_guard" \
   "$legacy_script_path"
+require_run_body_unique_command BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" \
+  '$trackedMigrations = @(git ls-files' \
+  "$legacy_tracked_migrations"
+require_run_body_unique_command BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" \
+  'git clean -fX --' \
+  "$legacy_migration_cleanup"
+require_run_body_without_command BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" 'Get-ChildItem'
+require_run_body_without_command BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" 'Remove-Item'
 
 require_job_literal PackageConsumer "$package_consumer_job" 'needs: BuildAndTest'
 require_job_literal PackageConsumer "$package_consumer_job" 'runs-on: ubuntu-latest'
