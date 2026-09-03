@@ -456,11 +456,14 @@ require_run_body_literals_in_order BuildAndTest 'Integration Tests - Legacy migr
   "$legacy_cleanup_guard" \
   "$legacy_script_path"
 require_run_body_unique_command BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" \
-  '$trackedMigrations = @(git ls-files' \
+  '$trackedMigrations = ' \
   "$legacy_tracked_migrations"
 require_run_body_unique_command BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" \
   'git clean -fX --' \
   "$legacy_migration_cleanup"
+require_run_body_unique_command BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" \
+  '$migrationDirectory = ' \
+  "$legacy_migration_directory"
 require_run_body_without_command BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" 'Get-ChildItem'
 require_run_body_without_command BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" 'Remove-Item'
 
