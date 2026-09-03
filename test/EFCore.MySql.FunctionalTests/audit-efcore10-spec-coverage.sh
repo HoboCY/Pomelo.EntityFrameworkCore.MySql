@@ -72,7 +72,7 @@ base_type_count="$(printf '%s\n' "$base_types_text" | awk 'NF { count++ } END { 
 
 while IFS= read -r base_type; do
   [[ -n "$base_type" ]] || continue
-  row_count="$(rg -F -c "| base | $base_type |" "$ledger_file" || true)"
+  row_count="$(grep -F -c "| base | $base_type |" "$ledger_file" || true)"
   [[ "$row_count" == 1 ]] || fail "base ignore is missing or duplicated in the ledger: $base_type"
 done <<< "$base_types_text"
 
@@ -134,7 +134,7 @@ added_ignored_types="$(comm -13 <(printf '%s\n' "$baseline_ignored_types") <(pri
 
 while IFS= read -r added_type; do
   [[ -n "$added_type" ]] || continue
-  row_count="$(rg -F -c "| base | $added_type |" "$ledger_file" || true)"
+  row_count="$(grep -F -c "| base | $added_type |" "$ledger_file" || true)"
   [[ "$row_count" == 1 ]] || fail "new ignored base is missing or duplicated in the ledger: $added_type"
 done <<< "$added_ignored_types"
 
@@ -253,7 +253,7 @@ while IFS= read -r file_path; do
       current_skip_was_added=0
       while IFS=$'\t' read -r skip_line current_signature; do
         [[ "$current_signature" == "$method_signature" ]] || continue
-        if printf '%s\n' "$added_skip_lines" | rg -F -x -q "$skip_line"; then
+        if printf '%s\n' "$added_skip_lines" | grep -F -x -q "$skip_line"; then
           current_skip_was_added=1
           break
         fi
@@ -262,10 +262,10 @@ while IFS= read -r file_path; do
     fi
     method_key="$file_path#$method_signature"
     current_added_method_keys+="$method_key\n"
-    row_count="$(rg -F -c "| method | $method_key |" "$ledger_file" || true)"
+    row_count="$(grep -F -c "| method | $method_key |" "$ledger_file" || true)"
     [[ "$row_count" == 1 ]] || fail "new method-level skip is missing or duplicated in the ledger: $method_key"
   done <<< "$added_methods"
-done < <(git -C "$repository_directory" diff --name-only "$baseline_commit" -- test/EFCore.MySql.FunctionalTests | rg '\.cs$')
+done < <(git -C "$repository_directory" diff --name-only "$baseline_commit" -- test/EFCore.MySql.FunctionalTests | grep -E '\.cs$')
 
 expected_method_count="$(printf '%s\n' "$expected_method_keys" | awk 'NF { count++ } END { print count + 0 }')"
 actual_method_count="$(printf '%b' "$current_added_method_keys" | awk 'NF { count++ } END { print count + 0 }')"
@@ -274,12 +274,12 @@ actual_method_count="$(printf '%b' "$current_added_method_keys" | awk 'NF { coun
 
 while IFS= read -r method_key; do
   [[ -n "$method_key" ]] || continue
-  printf '%b' "$current_added_method_keys" | rg -F -x -q "$method_key" \
+  printf '%b' "$current_added_method_keys" | grep -F -x -q "$method_key" \
     || fail "expected method-level skip is not present in the fixed-baseline diff: $method_key"
 done <<< "$expected_method_keys"
 
-ledger_base_count="$(rg -F -c '| base |' "$ledger_file" || true)"
-ledger_method_count="$(rg -F -c '| method |' "$ledger_file" || true)"
+ledger_base_count="$(grep -F -c '| base |' "$ledger_file" || true)"
+ledger_method_count="$(grep -F -c '| method |' "$ledger_file" || true)"
 [[ "$ledger_base_count" == 39 ]] || fail "ledger must contain 39 base rows, found $ledger_base_count"
 [[ "$ledger_method_count" == 14 ]] || fail "ledger must contain 14 method rows, found $ledger_method_count"
 

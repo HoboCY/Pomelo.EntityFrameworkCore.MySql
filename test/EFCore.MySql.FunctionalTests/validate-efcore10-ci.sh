@@ -88,7 +88,7 @@ require_job_literal() {
   local job="$2"
   local literal="$3"
 
-  printf '%s\n' "$job" | rg -F -q -- "$literal" \
+  printf '%s\n' "$job" | grep -F -q -- "$literal" \
     || fail "$job_name job is missing: $literal"
 }
 
@@ -99,7 +99,7 @@ require_step_literal() {
   local literal="$4"
 
   [[ -n "$step" ]] || fail "$job_name is missing step: $step_name"
-  printf '%s\n' "$step" | rg -F -q -- "$literal" \
+  printf '%s\n' "$step" | grep -F -q -- "$literal" \
     || fail "$job_name/$step_name is missing: $literal"
 }
 
@@ -109,10 +109,10 @@ require_run_command() {
   local step="$3"
   local command_pattern="$4"
 
-  if printf '%s\n' "$step" | rg -q -- "^[[:space:]]+run:[[:space:]]+${command_pattern}"; then
+  if printf '%s\n' "$step" | grep -E -q -- "^[[:space:]]+run:[[:space:]]+${command_pattern}"; then
     return
   fi
-  if printf '%s\n' "$step" | rg -q -- "^[[:space:]]+${command_pattern}"; then
+  if printf '%s\n' "$step" | grep -E -q -- "^[[:space:]]+${command_pattern}"; then
     return
   fi
   fail "$job_name/$step_name is missing executable command: $command_pattern"
@@ -177,7 +177,7 @@ nuget_job="$(job_block NuGet)"
 for trigger_name in push pull_request; do
   trigger="$(trigger_block "$trigger_name")"
   [[ -n "$trigger" ]] || fail "on.$trigger_name trigger was not found"
-  if printf '%s\n' "$trigger" | rg -q '^[[:space:]]+paths(-ignore)?:'; then
+  if printf '%s\n' "$trigger" | grep -E -q '^[[:space:]]+paths(-ignore)?:'; then
     fail "on.$trigger_name must not use paths or paths-ignore so EF Core 10 ledger changes trigger CI"
   fi
 done
@@ -219,7 +219,7 @@ matrix_block="$(printf '%s\n' "$strategy_block" | awk '
   found { print }
 ')"
 [[ -n "$matrix_block" ]] || fail 'BuildAndTest matrix was not found'
-if printf '%s\n' "$matrix_block" | rg -n '^[[:space:]]+(exclude|include):'; then
+if printf '%s\n' "$matrix_block" | grep -E -n '^[[:space:]]+(exclude|include):'; then
   fail 'BuildAndTest matrix must not alter the existing 2 x 9 release matrix'
 fi
 
@@ -312,21 +312,21 @@ upload_step="$(step_block "$package_consumer_job" 'Upload package validation art
 require_step_literal PackageConsumer 'Upload package validation artifacts' "$upload_step" 'uses: actions/upload-artifact@v4'
 require_step_literal PackageConsumer 'Upload package validation artifacts' "$upload_step" 'path: artifacts/packages'
 assert_step_not_disabled PackageConsumer 'Upload package validation artifacts' "$upload_step"
-if printf '%s\n' "$package_consumer_job" | rg -n 'dotnet nuget push|git tag|gh release'; then
+if printf '%s\n' "$package_consumer_job" | grep -E -n 'dotnet nuget push|git tag|gh release'; then
   fail 'PackageConsumer must only verify and upload artifacts'
 fi
 
 require_job_literal NuGet "$nuget_job" 'needs: [BuildAndTest, PackageConsumer]'
 
 for job in "$ci_job" "$build_job" "$package_consumer_job" "$nuget_job"; do
-  if printf '%s\n' "$job" | rg -n 'continue-on-error:|\|\|[[:space:]]*true'; then
+  if printf '%s\n' "$job" | grep -E -n 'continue-on-error:|\|\|[[:space:]]*true'; then
     fail 'workflow jobs must not mask product failures with continue-on-error or || true'
   fi
 done
 
-rg -F -q 'dotnet pack' "$package_consumer_script" \
+grep -F -q 'dotnet pack' "$package_consumer_script" \
   || fail 'package consumer validation must pack local artifacts'
-rg -F -q 'compiledModel' "$repository_directory/test/EFCore.MySql.IntegrationTests/scripts/optimize.sh" \
+grep -F -q 'compiledModel' "$repository_directory/test/EFCore.MySql.IntegrationTests/scripts/optimize.sh" \
   || fail 'compiled-model validation must execute its public runtime seam'
 
 "$repository_directory/test/EFCore.MySql.FunctionalTests/audit-efcore10-spec-coverage.sh"
