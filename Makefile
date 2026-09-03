@@ -11,7 +11,7 @@ SRC_PROJECTS    := \
 
 .DEFAULT_GOAL := help
 
-.PHONY: help restore build rebuild test functional-tests efcore10-spec-audit package package-consumer clean
+.PHONY: help restore build rebuild test functional-tests efcore10-spec-audit efcore10-ci-check package package-consumer clean
 
 help: ## List the available tasks (default)
 	@echo "Pomelo.EntityFrameworkCore.MySql -- available make tasks:"
@@ -37,6 +37,9 @@ functional-tests: ## Run the functional tests (requires a configured config.json
 
 efcore10-spec-audit: ## Verify EF Core 10 specification deferrals and skip coverage
 	./test/EFCore.MySql.FunctionalTests/audit-efcore10-spec-coverage.sh
+
+efcore10-ci-check: ## Verify the EF Core 10 workflow contract
+	./test/EFCore.MySql.FunctionalTests/validate-efcore10-ci.sh
 
 package: ## Create the release NuGet packages in artifacts/packages
 	rm -rf $(PACKAGE_OUTPUT)
