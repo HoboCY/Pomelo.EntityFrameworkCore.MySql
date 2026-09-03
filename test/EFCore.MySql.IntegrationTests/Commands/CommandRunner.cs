@@ -63,14 +63,25 @@ namespace Pomelo.EntityFrameworkCore.MySql.IntegrationTests.Commands{
                                 .ToList();
                         }
                         break;
-	                case "testPerformance":
-	                    if (args.Length != 4)
+                    case "testPerformance":
+                    {
+                        if (args.Length != 4)
                         {
                             goto default;
                         }
 
-                        _testPerformanceCommand.Run(int.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]));
-	                    break;
+                        if (!int.TryParse(args[1], out var iterations) ||
+                            !int.TryParse(args[2], out var concurrency) ||
+                            !int.TryParse(args[3], out var operations) ||
+                            iterations <= 0 || concurrency <= 0 || operations <= 0)
+                        {
+                            Console.Error.WriteLine("testPerformance iterations, concurrency, and operations must be positive integers.");
+                            return 1;
+                        }
+
+                        _testPerformanceCommand.Run(iterations, concurrency, operations);
+                        break;
+                    }
 		            case "-h":
 		            case "--help":
 			            Help();

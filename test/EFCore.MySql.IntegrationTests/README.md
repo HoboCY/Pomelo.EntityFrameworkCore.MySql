@@ -16,6 +16,11 @@ Integration and Performance Tests
 1. Configure the database.
 2. Run `dotnet run`. This will start a .NET Core MVC API application on "http://localhost:5000".
 
+For the repeatable command-line benchmark, run `make performance-tests CONFIGURATION=Release` from the repository root. The target builds
+the integration project, warms each scenario once outside the measured iterations, and invokes the public
+`testPerformance [iterations] [concurrency] [operations]` command. Its output reports monotonic timing statistics (including median),
+per-measured-iteration managed allocation deltas, and a separately labeled retained-heap diagnostic.
+
 Methods:
 
 `GET  /api/async` and `GET /api/sync` return the most recent 10 posts.

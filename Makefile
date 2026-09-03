@@ -11,7 +11,9 @@ SRC_PROJECTS    := \
 
 .DEFAULT_GOAL := help
 
-.PHONY: help restore build rebuild test functional-tests efcore10-spec-audit efcore10-ci-check efcore10-ci-portability-check package package-consumer clean
+.PHONY: help restore build rebuild test functional-tests \
+	performance-tests efcore10-spec-audit efcore10-ci-check \
+	efcore10-ci-portability-check package package-consumer clean
 
 help: ## List the available tasks (default)
 	@echo "Pomelo.EntityFrameworkCore.MySql -- available make tasks:"
@@ -34,6 +36,9 @@ test: ## Run the unit tests (no database required)
 
 functional-tests: ## Run the functional tests (requires a configured config.json + database)
 	dotnet test test/EFCore.MySql.FunctionalTests/EFCore.MySql.FunctionalTests.csproj -c $(CONFIGURATION)
+
+performance-tests: ## Run the public testPerformance CLI checks (requires a configured config.json + database)
+	CONFIGURATION=$(CONFIGURATION) ./test/EFCore.MySql.IntegrationTests/scripts/performance.sh
 
 efcore10-spec-audit: ## Verify EF Core 10 specification deferrals and skip coverage
 	./test/EFCore.MySql.FunctionalTests/audit-efcore10-spec-coverage.sh
