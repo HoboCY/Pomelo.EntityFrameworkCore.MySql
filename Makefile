@@ -11,12 +11,12 @@ SRC_PROJECTS    := \
 
 .DEFAULT_GOAL := help
 
-.PHONY: help restore build rebuild test functional-tests package package-consumer clean
+.PHONY: help restore build rebuild test functional-tests efcore10-spec-audit package package-consumer clean
 
 help: ## List the available tasks (default)
 	@echo "Pomelo.EntityFrameworkCore.MySql -- available make tasks:"
 	@echo ""
-	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+	@grep -hE '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "Override the build configuration with CONFIGURATION=Release (default: Debug)."
@@ -34,6 +34,9 @@ test: ## Run the unit tests (no database required)
 
 functional-tests: ## Run the functional tests (requires a configured config.json + database)
 	dotnet test test/EFCore.MySql.FunctionalTests/EFCore.MySql.FunctionalTests.csproj -c $(CONFIGURATION)
+
+efcore10-spec-audit: ## Verify EF Core 10 specification deferrals and skip coverage
+	./test/EFCore.MySql.FunctionalTests/audit-efcore10-spec-coverage.sh
 
 package: ## Create the release NuGet packages in artifacts/packages
 	rm -rf $(PACKAGE_OUTPUT)
