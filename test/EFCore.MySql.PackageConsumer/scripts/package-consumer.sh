@@ -29,6 +29,41 @@ fail() {
     exit 1
 }
 
+assert_assets_resolved() {
+    local assets_file="$1"
+    local package="$2"
+    local version="$3"
+
+    grep -F -q "\"$package/$version\"" "$assets_file"
+}
+
+if [[ "${PACKAGE_CONSUMER_SELF_TEST:-false}" == "true" ]]; then
+    self_test_assets_file="$(mktemp "${TMPDIR:-/tmp}/pomelo-package-consumer-assets.XXXXXX")"
+    cleanup_self_test() {
+        rm -f -- "$self_test_assets_file"
+    }
+    trap cleanup_self_test EXIT
+
+    printf '%s\n' \
+        '{' \
+        '  "libraries": {' \
+        '    "Microsoft.EntityFrameworkCore/10.0.0": {},' \
+        '    "Pomelo.EntityFrameworkCore.MySql/10.0.0": {}' \
+        '  }' \
+        '}' > "$self_test_assets_file"
+
+    assert_assets_resolved "$self_test_assets_file" 'Microsoft.EntityFrameworkCore' '10.0.0' \
+        || fail 'asset self-test did not find the expected EF Core package'
+    assert_assets_resolved "$self_test_assets_file" 'Pomelo.EntityFrameworkCore.MySql' '10.0.0' \
+        || fail 'asset self-test did not find the expected Pomelo package'
+    if assert_assets_resolved "$self_test_assets_file" 'Missing.Package' '10.0.0'; then
+        fail 'asset self-test unexpectedly found a missing package'
+    fi
+
+    printf 'Package consumer asset self-test passed (hit and miss).\n'
+    exit 0
+fi
+
 if [[ -e "$migrations_directory" ]]; then
     fail "refusing to overwrite pre-existing migration directory: $migrations_directory"
 fi
@@ -159,7 +194,7 @@ assert_restored_packages() {
     local expected_hash
 
     [[ -f "$assets_file" ]] || fail "consumer restore did not produce $assets_file"
-    grep -F -q "\"Microsoft.EntityFrameworkCore/$efcore_version\"" "$assets_file" \
+    assert_assets_resolved "$assets_file" 'Microsoft.EntityFrameworkCore' "$efcore_version" \
         || fail "consumer restore did not resolve EF Core $efcore_version"
 
     for package in \
@@ -167,7 +202,7 @@ assert_restored_packages() {
         Pomelo.EntityFrameworkCore.MySql.Json.Microsoft \
         Pomelo.EntityFrameworkCore.MySql.Json.Newtonsoft \
         Pomelo.EntityFrameworkCore.MySql.NetTopologySuite; do
-        grep -F -q "\"$package/$provider_version\"" "$assets_file" \
+        assert_assets_resolved "$assets_file" "$package" "$provider_version" \
             || fail "consumer restore did not resolve $package $provider_version"
 
         package_directory="$active_consumer_packages_directory/$(printf '%s' "$package" | tr '[:upper:]' '[:lower:]')/$provider_version"

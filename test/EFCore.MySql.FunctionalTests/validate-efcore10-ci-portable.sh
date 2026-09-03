@@ -22,9 +22,8 @@ done
 if PATH="$portable_tool_path" command -v rg >/dev/null 2>&1; then
   fail 'regression fixture unexpectedly exposes rg'
 fi
-if PATH="$portable_tool_path" grep -E -q '(^|[[:space:]])rg([[:space:]]|$)' "$package_consumer_script"; then
-  fail "package consumer script must not require ripgrep: $package_consumer_script"
-fi
+PATH="$portable_tool_path" TMPDIR=/tmp PACKAGE_CONSUMER_SELF_TEST=true "$package_consumer_script" \
+  || fail "package consumer asset self-test failed under the portable tool path"
 
 PATH="$portable_tool_path" "$validator_script"
 printf 'EF Core 10 CI portability check passed without ripgrep.\n'
