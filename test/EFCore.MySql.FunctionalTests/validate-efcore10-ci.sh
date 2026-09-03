@@ -142,6 +142,27 @@ require_run_command() {
   fail "$job_name/$step_name is missing executable command: $command_pattern"
 }
 
+require_run_command_suffix() {
+  local job_name="$1"
+  local step_name="$2"
+  local step="$3"
+  local command_suffix="$4"
+
+  if printf '%s\n' "$step" | awk -v command_suffix="$command_suffix" '
+    /^[[:space:]]+run:/ {
+      line = $0
+      sub(/[[:space:]]+$/, "", line)
+      if (length(line) >= length(command_suffix) && substr(line, length(line) - length(command_suffix) + 1) == command_suffix) {
+        found = 1
+      }
+    }
+    END { exit(found ? 0 : 1) }
+  '; then
+    return
+  fi
+  fail "$job_name/$step_name is missing command suffix: $command_suffix"
+}
+
 assert_full_history_checkout() {
   local job_name="$1"
   local job="$2"
@@ -301,12 +322,19 @@ build_step="$(step_block "$build_job" 'Build Solution')"
 require_step_literal BuildAndTest 'Build Solution' "$build_step" 'dotnet build -c Debug -p:TreatWarningsAsErrors=true'
 require_step_literal BuildAndTest 'Build Solution' "$build_step" 'dotnet build -c Release -p:TreatWarningsAsErrors=true'
 require_step_literal BuildAndTest 'Build Solution' "$build_step" 'shell: pwsh'
+set_variables_step="$(step_block "$build_job" 'Set additional variables')"
+require_step_literal BuildAndTest 'Set additional variables' "$set_variables_step" 'shell: pwsh'
+require_step_literal BuildAndTest 'Set additional variables' "$set_variables_step" '$functionalTestMaxParallelThreads = $os -eq '\''linux'\'' -and $databaseServerType -eq '\''mariadb'\'' ? 1 : 0'
+require_step_literal BuildAndTest 'Set additional variables' "$set_variables_step" 'echo "functionalTestMaxParallelThreads=$functionalTestMaxParallelThreads" >> $env:GITHUB_ENV'
+output_variables_step="$(step_block "$build_job" 'Output Variables')"
+require_step_literal BuildAndTest 'Output Variables' "$output_variables_step" 'echo "functionalTestMaxParallelThreads: ${{ env.functionalTestMaxParallelThreads }}"'
 audit_step="$(step_block "$build_job" 'EF Core 10 specification audit')"
 require_step_literal BuildAndTest 'EF Core 10 specification audit' "$audit_step" 'run: ./test/EFCore.MySql.FunctionalTests/audit-efcore10-spec-coverage.sh'
 require_step_literal BuildAndTest 'EF Core 10 specification audit' "$audit_step" 'shell: bash'
 functional_step="$(step_block "$build_job" 'Functional Tests')"
 require_step_literal BuildAndTest 'Functional Tests' "$functional_step" 'shell: pwsh'
 require_run_command BuildAndTest 'Functional Tests' "$functional_step" 'dotnet test .*test/EFCore[.]MySql[.]FunctionalTests'
+require_run_command_suffix BuildAndTest 'Functional Tests' "$functional_step" '-- xUnit.MaxParallelThreads=${{ env.functionalTestMaxParallelThreads }}'
 unit_step="$(step_block "$build_job" 'Tests')"
 require_step_literal BuildAndTest 'Tests' "$unit_step" 'shell: pwsh'
 require_run_command BuildAndTest 'Tests' "$unit_step" 'dotnet test .*test/EFCore[.]MySql[.]Tests'

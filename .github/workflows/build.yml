@@ -65,6 +65,9 @@ jobs:
           $databaseServerType = $dbVersionParts[1]
           echo "databaseServerType=$databaseServerType" >> $env:GITHUB_ENV
 
+          $functionalTestMaxParallelThreads = $os -eq 'linux' -and $databaseServerType -eq 'mariadb' ? 1 : 0
+          echo "functionalTestMaxParallelThreads=$functionalTestMaxParallelThreads" >> $env:GITHUB_ENV
+
           $databaseServerVersion = $dbVersionParts[0]
           echo "databaseServerVersion=$databaseServerVersion" >> $env:GITHUB_ENV
 
@@ -93,6 +96,7 @@ jobs:
           echo "os: ${{ env.os }}"
           echo "databaseServerType: ${{ env.databaseServerType }}"
           echo "databaseServerVersion: ${{ env.databaseServerVersion }}"
+          echo "functionalTestMaxParallelThreads: ${{ env.functionalTestMaxParallelThreads }}"
           echo "sqlMode: ${{ env.sqlMode }}"
           echo "skipTests: ${{ env.skipTests }}"
           echo "skipAllTests: ${{ env.skipAllTests }}"
@@ -256,7 +260,7 @@ jobs:
       - name: Functional Tests
         if: ${{ env.skipTests != 'true' }}
         shell: pwsh
-        run: dotnet test test/EFCore.MySql.FunctionalTests -c Debug --no-build --logger "GitHubActions;report-warnings=false" --verbosity detailed
+        run: dotnet test test/EFCore.MySql.FunctionalTests -c Debug --no-build --logger "GitHubActions;report-warnings=false" --verbosity detailed -- xUnit.MaxParallelThreads=${{ env.functionalTestMaxParallelThreads }}
       - name: Tests
         if: ${{ env.skipTests != 'true' }}
         shell: pwsh
