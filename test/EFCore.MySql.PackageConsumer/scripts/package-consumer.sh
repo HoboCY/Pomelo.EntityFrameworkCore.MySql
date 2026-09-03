@@ -159,7 +159,7 @@ assert_restored_packages() {
     local expected_hash
 
     [[ -f "$assets_file" ]] || fail "consumer restore did not produce $assets_file"
-    rg -F -q "\"Microsoft.EntityFrameworkCore/$efcore_version\"" "$assets_file" \
+    grep -F -q "\"Microsoft.EntityFrameworkCore/$efcore_version\"" "$assets_file" \
         || fail "consumer restore did not resolve EF Core $efcore_version"
 
     for package in \
@@ -167,7 +167,7 @@ assert_restored_packages() {
         Pomelo.EntityFrameworkCore.MySql.Json.Microsoft \
         Pomelo.EntityFrameworkCore.MySql.Json.Newtonsoft \
         Pomelo.EntityFrameworkCore.MySql.NetTopologySuite; do
-        rg -F -q "\"$package/$provider_version\"" "$assets_file" \
+        grep -F -q "\"$package/$provider_version\"" "$assets_file" \
             || fail "consumer restore did not resolve $package $provider_version"
 
         package_directory="$active_consumer_packages_directory/$(printf '%s' "$package" | tr '[:upper:]' '[:lower:]')/$provider_version"

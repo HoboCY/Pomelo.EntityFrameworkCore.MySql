@@ -4,6 +4,7 @@ set -Eeuo pipefail
 
 script_directory="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 validator_script="$script_directory/validate-efcore10-ci.sh"
+package_consumer_script="$script_directory/../EFCore.MySql.PackageConsumer/scripts/package-consumer.sh"
 portable_tool_path="/usr/bin:/bin"
 
 fail() {
@@ -12,6 +13,7 @@ fail() {
 }
 
 [[ -x "$validator_script" ]] || fail "validator was not executable: $validator_script"
+[[ -x "$package_consumer_script" ]] || fail "package consumer script was not executable: $package_consumer_script"
 
 for required_tool in bash awk grep sort comm cut git dirname; do
   PATH="$portable_tool_path" command -v "$required_tool" >/dev/null 2>&1 \
@@ -19,6 +21,9 @@ for required_tool in bash awk grep sort comm cut git dirname; do
 done
 if PATH="$portable_tool_path" command -v rg >/dev/null 2>&1; then
   fail 'regression fixture unexpectedly exposes rg'
+fi
+if PATH="$portable_tool_path" grep -E -q '(^|[[:space:]])rg([[:space:]]|$)' "$package_consumer_script"; then
+  fail "package consumer script must not require ripgrep: $package_consumer_script"
 fi
 
 PATH="$portable_tool_path" "$validator_script"
