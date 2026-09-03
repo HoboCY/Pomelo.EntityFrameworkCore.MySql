@@ -329,9 +329,9 @@ public class CompiledModelMySqlTest(NonSharedFixture fixture) : CompiledModelRel
             });
     }
 
-    [ConditionalFact(Skip = "The broad compiled-model fixture currently fails on its unrelated TimeSpan/TimeOnly mapping before it exercises structural JSON.")]
+    [ConditionalFact]
     public override Task BigModel_with_JSON_columns()
-        => Task.CompletedTask;
+        => base.BigModel_with_JSON_columns();
 
     // TODO: 9.0
     // Check, if we can make this work.
@@ -391,12 +391,12 @@ public class CompiledModelMySqlTest(NonSharedFixture fixture) : CompiledModelRel
         }
     }
 
-    [ConditionalFact(Skip = "Compiled-model generated-code baseline needs regeneration for EF Core 10.")]
+    [ConditionalFact]
     public override Task BigModel()
-        => Task.CompletedTask;
+        => base.BigModel();
 
-    [ConditionalFact(Skip = "Compiled-model generated-code baseline needs regeneration for EF Core 10.")]
+    [ConditionalFact]
     public override Task No_NativeAOT()
-        => Task.CompletedTask;
+        => base.No_NativeAOT();
 
 }
