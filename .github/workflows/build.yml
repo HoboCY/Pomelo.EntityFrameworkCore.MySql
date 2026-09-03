@@ -294,7 +294,10 @@ jobs:
       - name: Integration Tests - Legacy migrations
         if: ${{ env.skipTests != 'true' }}
         shell: pwsh
-        run: ./test/EFCore.MySql.IntegrationTests/scripts/legacy.ps1
+        run: |
+          $migrationDirectory = Join-Path $PWD.Path 'test/EFCore.MySql.IntegrationTests/Migrations'
+          Get-ChildItem -Path $migrationDirectory -Filter "*.cs" -File -ErrorAction SilentlyContinue | Remove-Item -Force
+          ./test/EFCore.MySql.IntegrationTests/scripts/legacy.ps1
       - name: Integration Tests - Building migrations with EF_DATABASE = pomelo_test2
         if: ${{ env.skipTests != 'true' }}
         shell: pwsh

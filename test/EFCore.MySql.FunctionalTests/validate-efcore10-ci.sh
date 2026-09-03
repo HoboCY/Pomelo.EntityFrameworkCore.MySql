@@ -103,6 +103,30 @@ require_step_literal() {
     || fail "$job_name/$step_name is missing: $literal"
 }
 
+require_step_literals_in_order() {
+  local job_name="$1"
+  local step_name="$2"
+  local step="$3"
+  local previous_line=0
+  local literal
+
+  shift 3
+
+  for literal in "$@"; do
+    local line
+
+    line="$(printf '%s\n' "$step" | awk -v literal="$literal" -v previous_line="$previous_line" '
+      index($0, literal) && NR > previous_line {
+        print NR
+        exit
+      }
+    ')"
+
+    [[ -n "$line" ]] || fail "$job_name/$step_name is missing ordered command: $literal"
+    previous_line="$line"
+  done
+}
+
 require_run_command() {
   local job_name="$1"
   local step_name="$2"
@@ -299,8 +323,15 @@ compiled_step="$(step_block "$build_job" 'Integration Tests - Compiled model')"
 require_step_literal BuildAndTest 'Integration Tests - Compiled model' "$compiled_step" 'run: ./test/EFCore.MySql.IntegrationTests/scripts/optimize.ps1'
 require_step_literal BuildAndTest 'Integration Tests - Compiled model' "$compiled_step" 'shell: pwsh'
 legacy_step="$(step_block "$build_job" 'Integration Tests - Legacy migrations')"
-require_step_literal BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" 'run: ./test/EFCore.MySql.IntegrationTests/scripts/legacy.ps1'
 require_step_literal BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" 'shell: pwsh'
+legacy_migration_directory='$migrationDirectory = Join-Path $PWD.Path '\''test/EFCore.MySql.IntegrationTests/Migrations'\'''
+legacy_migration_cleanup='Get-ChildItem -Path $migrationDirectory -Filter "*.cs" -File -ErrorAction SilentlyContinue | Remove-Item -Force'
+legacy_script_path='./test/EFCore.MySql.IntegrationTests/scripts/legacy.ps1'
+require_step_literal BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" "$legacy_script_path"
+require_step_literals_in_order BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" \
+  "$legacy_migration_directory" \
+  "$legacy_migration_cleanup" \
+  "$legacy_script_path"
 
 require_job_literal PackageConsumer "$package_consumer_job" 'needs: BuildAndTest'
 require_job_literal PackageConsumer "$package_consumer_job" 'runs-on: ubuntu-latest'
