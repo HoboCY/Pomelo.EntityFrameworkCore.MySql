@@ -5,17 +5,39 @@ set -euo pipefail
 script_directory="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repository_root="$(cd -- "$script_directory/../../.." && pwd)"
 consumer_project="$repository_root/test/EFCore.MySql.PackageConsumer/EFCore.MySql.PackageConsumer.csproj"
+consumer_project_directory="$(dirname -- "$consumer_project")"
 consumer_nuget_config="$repository_root/test/EFCore.MySql.PackageConsumer/NuGet.config"
 package_output="${PACKAGE_OUTPUT:-$repository_root/artifacts/packages}"
 provider_version="${POMELO_PACKAGE_VERSION:-10.0.0-rtm.3}"
 efcore_floor_version="${EFCORE_FLOOR_VERSION:-10.0.0}"
+efcore_latest_version="${EFCORE_LATEST_VERSION:-10.0.11}"
 mysql_image="${MYSQL_IMAGE:-mysql:8.4.3}"
 mariadb_image="${MARIADB_IMAGE:-mariadb:11.6.2}"
 database_password="${DATABASE_PASSWORD:-Password12!}"
 dotnet_working_directory="${DOTNET_WORKING_DIRECTORY:-$repository_root}"
-consumer_packages_directory="$(mktemp -d "${TMPDIR:-/tmp}/pomelo-efcore10-package-consumer.XXXXXX")"
+consumer_packages_directories=()
+active_consumer_packages_directory=
+consumer_config_directory=
+consumer_config_file=
+migrations_directory="$consumer_project_directory/Migrations"
+migrations_directory_created=false
 containers=()
 database_port=
+
+fail() {
+    printf 'Package consumer validation failed: %s\n' "$1" >&2
+    exit 1
+}
+
+if [[ -e "$migrations_directory" ]]; then
+    fail "refusing to overwrite pre-existing migration directory: $migrations_directory"
+fi
+
+if [[ "$package_output" != /* ]]; then
+    package_output="$repository_root/$package_output"
+fi
+mkdir -p -- "$package_output"
+package_output="$(cd -- "$package_output" && pwd -P)"
 
 cleanup() {
     if ((${#containers[@]} > 0)); then
@@ -24,15 +46,25 @@ cleanup() {
         done
     fi
 
-    if [[ -d "$consumer_packages_directory" ]]; then
-        rm -rf -- "$consumer_packages_directory"
-        printf 'Removed isolated consumer NuGet packages: %s\n' "$consumer_packages_directory" >&2
+    if [[ "$migrations_directory_created" == true && -d "$migrations_directory" ]]; then
+        rm -rf -- "$migrations_directory"
+        printf 'Removed generated consumer migrations: %s\n' "$migrations_directory" >&2
+    fi
+
+    for packages_directory in "${consumer_packages_directories[@]}"; do
+        if [[ -d "$packages_directory" ]]; then
+            rm -rf -- "$packages_directory"
+            printf 'Removed isolated consumer NuGet packages: %s\n' "$packages_directory" >&2
+        fi
+    done
+
+    if [[ -n "$consumer_config_directory" && -d "$consumer_config_directory" ]]; then
+        rm -rf -- "$consumer_config_directory"
+        printf 'Removed temporary consumer NuGet config.\n' >&2
     fi
 }
 
 trap cleanup EXIT
-
-printf 'Using isolated consumer NuGet packages: %s\n' "$consumer_packages_directory" >&2
 
 run_dotnet() {
     (
@@ -44,9 +76,22 @@ run_dotnet() {
 run_consumer_dotnet() {
     (
         cd "$dotnet_working_directory"
-        NUGET_PACKAGES="$consumer_packages_directory" dotnet "$@"
+        NUGET_PACKAGES="$active_consumer_packages_directory" dotnet "$@"
     )
 }
+
+new_consumer_packages_directory() {
+    active_consumer_packages_directory="$(mktemp -d "${TMPDIR:-/tmp}/pomelo-efcore10-package-consumer.XXXXXX")"
+    consumer_packages_directories+=("$active_consumer_packages_directory")
+    printf 'Using isolated consumer NuGet packages: %s\n' "$active_consumer_packages_directory" >&2
+}
+
+consumer_config_directory="$(mktemp -d "${TMPDIR:-/tmp}/pomelo-efcore10-package-consumer-config.XXXXXX")"
+consumer_config_file="$consumer_config_directory/NuGet.config"
+cp -- "$consumer_nuget_config" "$consumer_config_file"
+run_dotnet nuget update source local-pomelo \
+    --source "$package_output" \
+    --configfile "$consumer_config_file" >/dev/null
 
 source_projects=(
     "$repository_root/src/EFCore.MySql/EFCore.MySql.csproj"
@@ -56,8 +101,6 @@ source_projects=(
 )
 
 if [[ "${SKIP_PACKAGE:-false}" != "true" ]]; then
-    mkdir -p "$package_output"
-
     # Restore and build with the floor first. The package metadata is regenerated after a
     # range restore below, while --no-build keeps these floor-compiled binaries intact.
     for project in "${source_projects[@]}"; do
@@ -104,11 +147,56 @@ if [[ "${SKIP_PACKAGE:-false}" != "true" ]]; then
     printf 'Provider package declares EF Core [10.0.0,10.0.999].\n'
 fi
 
+assert_restored_packages() {
+    local efcore_version="$1"
+    local assets_file="$consumer_project_directory/obj/project.assets.json"
+    local package
+    local package_directory
+    local package_file
+    local metadata_file
+    local metadata_source
+    local metadata_hash
+    local expected_hash
+
+    [[ -f "$assets_file" ]] || fail "consumer restore did not produce $assets_file"
+    rg -F -q "\"Microsoft.EntityFrameworkCore/$efcore_version\"" "$assets_file" \
+        || fail "consumer restore did not resolve EF Core $efcore_version"
+
+    for package in \
+        Pomelo.EntityFrameworkCore.MySql \
+        Pomelo.EntityFrameworkCore.MySql.Json.Microsoft \
+        Pomelo.EntityFrameworkCore.MySql.Json.Newtonsoft \
+        Pomelo.EntityFrameworkCore.MySql.NetTopologySuite; do
+        rg -F -q "\"$package/$provider_version\"" "$assets_file" \
+            || fail "consumer restore did not resolve $package $provider_version"
+
+        package_directory="$active_consumer_packages_directory/$(printf '%s' "$package" | tr '[:upper:]' '[:lower:]')/$provider_version"
+        package_file="$package_output/$package.$provider_version.nupkg"
+        metadata_file="$package_directory/.nupkg.metadata"
+        [[ -f "$package_file" ]] \
+            || fail "expected local package artifact is missing: $package_file"
+        [[ -f "$metadata_file" ]] \
+            || fail "NuGet did not write package provenance metadata for $package"
+
+        metadata_source="$(sed -n 's/.*"source"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$metadata_file")"
+        [[ "$metadata_source" == "$package_output" ]] \
+            || fail "NuGet restored $package from an unexpected package source"
+
+        metadata_hash="$(sed -n 's/.*"contentHash"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$metadata_file")"
+        expected_hash="$(openssl dgst -sha512 -binary "$package_file" | base64 | tr -d '\n')"
+        [[ -n "$metadata_hash" && "$metadata_hash" == "$expected_hash" ]] \
+            || fail "NuGet package provenance hash mismatch for $package"
+    done
+
+    printf 'Local Pomelo package provenance verified for EF Core %s.\n' "$efcore_version"
+}
+
 start_database() {
-    local database_type="$1"
-    local image="$2"
+    local scenario_name="$1"
+    local database_type="$2"
+    local image="$3"
     local client
-    local container_name="pomelo-efcore10-package-consumer-${database_type}-$$"
+    local container_name="pomelo-efcore10-package-consumer-${scenario_name}-${database_type}-$$"
     local database_name="pomelo_package_consumer_${database_type}"
     local host_port
     local attempt
@@ -155,26 +243,69 @@ start_database() {
 }
 
 run_consumer() {
-    local database_type="$1"
-    local efcore_version="$2"
-    local image="$3"
+    local scenario_name="$1"
+    local database_type="$2"
+    local efcore_version="$3"
+    local image="$4"
     local port
     local connection_string
 
-    start_database "$database_type" "$image"
+    new_consumer_packages_directory
+    run_consumer_dotnet tool restore \
+        --tool-manifest "$repository_root/dotnet-tools.json" \
+        --configfile "$consumer_config_file"
+
+    start_database "$scenario_name" "$database_type" "$image"
     port="$database_port"
     connection_string="Server=127.0.0.1;Port=$port;User ID=root;Password=$database_password;Database=pomelo_package_consumer_${database_type};"
 
     run_consumer_dotnet restore "$consumer_project" \
-        --configfile "$consumer_nuget_config" \
+        --configfile "$consumer_config_file" \
         --no-cache \
         -p:ConsumerProviderVersion="$provider_version" \
         -p:ConsumerEfCoreVersion="$efcore_version"
+    assert_restored_packages "$efcore_version"
+
     run_consumer_dotnet build "$consumer_project" \
         -c Release \
         --no-restore \
         -p:ConsumerProviderVersion="$provider_version" \
         -p:ConsumerEfCoreVersion="$efcore_version"
+
+    migrations_directory_created=true
+    ConsumerProviderVersion="$provider_version" \
+    ConsumerEfCoreVersion="$efcore_version" \
+    POMELO_PACKAGE_CONSUMER_CONNECTION_STRING="$connection_string" \
+    POMELO_PACKAGE_CONSUMER_SERVER_TYPE="$database_type" \
+        run_consumer_dotnet ef migrations add Initial \
+            --project "$consumer_project" \
+            --startup-project "$consumer_project" \
+            --context SmokeContext \
+            --output-dir Migrations \
+            --configuration Release
+
+    migration_file_count="$(find "$migrations_directory" -maxdepth 1 -type f -name '*.cs' | wc -l | tr -d ' ')"
+    [[ "$migration_file_count" == 3 ]] \
+        || fail "public migrations add generated $migration_file_count C# files, expected 3"
+    [[ -f "$migrations_directory/SmokeContextModelSnapshot.cs" ]] \
+        || fail "public migrations add did not generate the model snapshot"
+
+    run_consumer_dotnet build "$consumer_project" \
+        -c Release \
+        --no-restore \
+        -p:ConsumerProviderVersion="$provider_version" \
+        -p:ConsumerEfCoreVersion="$efcore_version"
+
+    ConsumerProviderVersion="$provider_version" \
+    ConsumerEfCoreVersion="$efcore_version" \
+    POMELO_PACKAGE_CONSUMER_CONNECTION_STRING="$connection_string" \
+    POMELO_PACKAGE_CONSUMER_SERVER_TYPE="$database_type" \
+        run_consumer_dotnet ef database update \
+            --project "$consumer_project" \
+            --startup-project "$consumer_project" \
+            --context SmokeContext \
+            --no-build \
+            --configuration Release
 
     POMELO_PACKAGE_CONSUMER_CONNECTION_STRING="$connection_string" \
     POMELO_PACKAGE_CONSUMER_SERVER_TYPE="$database_type" \
@@ -185,9 +316,15 @@ run_consumer() {
             --no-build \
             -p:ConsumerProviderVersion="$provider_version" \
             -p:ConsumerEfCoreVersion="$efcore_version"
+
+    rm -rf -- "$migrations_directory"
+    migrations_directory_created=false
 }
 
-run_consumer mysql "$efcore_floor_version" "$mysql_image"
-run_consumer mariadb "$efcore_floor_version" "$mariadb_image"
+run_consumer floor-mysql mysql "$efcore_floor_version" "$mysql_image"
+run_consumer floor-mariadb mariadb "$efcore_floor_version" "$mariadb_image"
+run_consumer latest-mysql mysql "$efcore_latest_version" "$mysql_image"
+run_consumer latest-mariadb mariadb "$efcore_latest_version" "$mariadb_image"
 
-printf 'Package consumer validation passed for EF Core %s on MySQL and MariaDB.\n' "$efcore_floor_version"
+printf 'Package consumer validation passed for EF Core %s and %s on MySQL and MariaDB.\n' \
+    "$efcore_floor_version" "$efcore_latest_version"
