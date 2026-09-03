@@ -163,6 +163,54 @@ require_run_body_literals_in_order() {
   done
 }
 
+run_body_all_lines() {
+  local step="$1"
+
+  printf '%s\n' "$step" | awk '
+    /^        run:[[:space:]]*\|[[:space:]]*$/ {
+      in_run = 1
+      next
+    }
+    /^        run:[[:space:]]+/ {
+      line = $0
+      sub(/^        run:[[:space:]]+/, "", line)
+      if (line !~ /^[[:space:]]*#/ && line !~ /^[[:space:]]*$/) {
+        print line
+      }
+      in_run = 0
+      next
+    }
+    in_run {
+      if ($0 !~ /^          /) {
+        if ($0 ~ /^[[:space:]]*$/) {
+          next
+        }
+        in_run = 0
+        next
+      }
+      line = $0
+      sub(/^          /, "", line)
+      if (line !~ /^[[:space:]]*#/ && line !~ /^[[:space:]]*$/) {
+        print line
+      }
+    }
+  '
+}
+
+require_run_body_exact_commands() {
+  local job_name="$1"
+  local step_name="$2"
+  local step="$3"
+  local commands
+  local expected_commands
+
+  shift 3
+  commands="$(run_body_all_lines "$step")"
+  expected_commands="$(printf '%s\n' "$@")"
+  [[ "$commands" == "$expected_commands" ]] \
+    || fail "$job_name/$step_name must contain exactly the expected PowerShell commands"
+}
+
 require_run_body_unique_command() {
   local job_name="$1"
   local step_name="$2"
@@ -184,53 +232,6 @@ require_run_body_unique_command() {
     return
   fi
   fail "$job_name/$step_name has an unexpected or repeated top-level command: $expected_command"
-}
-
-require_run_body_unique_assignment() {
-  local job_name="$1"
-  local step_name="$2"
-  local step="$3"
-  local variable_name="$4"
-  local expected_command="$5"
-  local commands
-
-  commands="$(run_body "$step")"
-  if printf '%s\n' "$commands" | awk -v variable_name="$variable_name" -v expected_command="$expected_command" '
-    {
-      if (substr($0, 1, length(variable_name)) != variable_name) {
-        next
-      }
-      suffix = substr($0, length(variable_name) + 1)
-      if (suffix !~ /^[[:space:]]*=/) {
-        next
-      }
-      count++
-      if ($0 != expected_command) {
-        invalid = 1
-      }
-    }
-    END { exit(count == 1 && !invalid ? 0 : 1) }
-  '; then
-    return
-  fi
-  fail "$job_name/$step_name has an unexpected or repeated top-level assignment: $expected_command"
-}
-
-require_run_body_without_command() {
-  local job_name="$1"
-  local step_name="$2"
-  local step="$3"
-  local forbidden_command="$4"
-  local commands
-
-  commands="$(run_body "$step")"
-  if printf '%s\n' "$commands" | awk -v forbidden_command="$forbidden_command" '
-    index($0, forbidden_command) > 0 { found = 1 }
-    END { exit(found ? 1 : 0) }
-  '; then
-    return
-  fi
-  fail "$job_name/$step_name contains a forbidden top-level command: $forbidden_command"
 }
 
 require_run_command() {
@@ -477,7 +478,7 @@ legacy_migration_cleanup='git clean -fX -- ":(glob)$migrationDirectory/*.cs"'
 legacy_cleanup_guard='if ($LASTEXITCODE -ne 0) { throw '\''git clean failed.'\'' }'
 legacy_script_path='./test/EFCore.MySql.IntegrationTests/scripts/legacy.ps1'
 require_step_literal BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" "$legacy_script_path"
-require_run_body_literals_in_order BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" \
+require_run_body_exact_commands BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" \
   "$legacy_migration_directory" \
   "$legacy_tracked_migrations" \
   "$legacy_index_guard" \
@@ -485,17 +486,6 @@ require_run_body_literals_in_order BuildAndTest 'Integration Tests - Legacy migr
   "$legacy_migration_cleanup" \
   "$legacy_cleanup_guard" \
   "$legacy_script_path"
-require_run_body_unique_assignment BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" \
-  '$trackedMigrations' \
-  "$legacy_tracked_migrations"
-require_run_body_unique_command BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" \
-  'git clean -fX --' \
-  "$legacy_migration_cleanup"
-require_run_body_unique_assignment BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" \
-  '$migrationDirectory' \
-  "$legacy_migration_directory"
-require_run_body_without_command BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" 'Get-ChildItem'
-require_run_body_without_command BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" 'Remove-Item'
 
 require_job_literal PackageConsumer "$package_consumer_job" 'needs: BuildAndTest'
 require_job_literal PackageConsumer "$package_consumer_job" 'runs-on: ubuntu-latest'
