@@ -186,6 +186,36 @@ require_run_body_unique_command() {
   fail "$job_name/$step_name has an unexpected or repeated top-level command: $expected_command"
 }
 
+require_run_body_unique_assignment() {
+  local job_name="$1"
+  local step_name="$2"
+  local step="$3"
+  local variable_name="$4"
+  local expected_command="$5"
+  local commands
+
+  commands="$(run_body "$step")"
+  if printf '%s\n' "$commands" | awk -v variable_name="$variable_name" -v expected_command="$expected_command" '
+    {
+      if (substr($0, 1, length(variable_name)) != variable_name) {
+        next
+      }
+      suffix = substr($0, length(variable_name) + 1)
+      if (suffix !~ /^[[:space:]]*=/) {
+        next
+      }
+      count++
+      if ($0 != expected_command) {
+        invalid = 1
+      }
+    }
+    END { exit(count == 1 && !invalid ? 0 : 1) }
+  '; then
+    return
+  fi
+  fail "$job_name/$step_name has an unexpected or repeated top-level assignment: $expected_command"
+}
+
 require_run_body_without_command() {
   local job_name="$1"
   local step_name="$2"
@@ -455,14 +485,14 @@ require_run_body_literals_in_order BuildAndTest 'Integration Tests - Legacy migr
   "$legacy_migration_cleanup" \
   "$legacy_cleanup_guard" \
   "$legacy_script_path"
-require_run_body_unique_command BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" \
-  '$trackedMigrations = ' \
+require_run_body_unique_assignment BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" \
+  '$trackedMigrations' \
   "$legacy_tracked_migrations"
 require_run_body_unique_command BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" \
   'git clean -fX --' \
   "$legacy_migration_cleanup"
-require_run_body_unique_command BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" \
-  '$migrationDirectory = ' \
+require_run_body_unique_assignment BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" \
+  '$migrationDirectory' \
   "$legacy_migration_directory"
 require_run_body_without_command BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" 'Get-ChildItem'
 require_run_body_without_command BuildAndTest 'Integration Tests - Legacy migrations' "$legacy_step" 'Remove-Item'
