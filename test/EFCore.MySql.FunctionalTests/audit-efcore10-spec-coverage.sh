@@ -40,21 +40,497 @@ is_valid_category() {
   esac
 }
 
+# A row cannot be closed with wording alone: `coverage=` must name provider
+# tests that exist in this repository (or `none`), and `deferred=` must state a
+# concrete remaining scope and repeat the row's follow-up identifier.
+validate_coverage() {
+  local kind="$1"
+  local key="$2"
+  local coverage="$3"
+
+  coverage="$(trim "$coverage")"
+
+  if [[ "$coverage" == "none" ]]; then
+    return 0
+  fi
+
+  [[ -n "$coverage" ]] || fail "missing coverage evidence for $kind $key"
+
+  local found_reference=0
+  local reference_entry
+
+  while IFS= read -r reference_entry; do
+    reference_entry="$(trim "$reference_entry")"
+    [[ -n "$reference_entry" ]] || continue
+    found_reference=1
+
+    if [[ ! "$reference_entry" =~ ^test/[A-Za-z0-9_./-]+\.cs#[A-Za-z0-9_]+$ ]]; then
+      fail "coverage evidence of $kind $key is not in test/<path>.cs#<Member> form: $reference_entry"
+    fi
+
+    local referenced_file="${reference_entry%%#*}"
+    local referenced_member="${reference_entry##*#}"
+
+    [[ -f "$repository_directory/$referenced_file" ]] \
+      || fail "coverage evidence of $kind $key points at a missing file: $referenced_file"
+
+    local declaration_state
+    declaration_state="$(member_declaration_state "$repository_directory/$referenced_file" "$referenced_member")"
+
+    case "$declaration_state" in
+      declared)
+        ;;
+      disabled)
+        fail "coverage evidence of $kind $key points at a disabled method in $referenced_file: $referenced_member"
+        ;;
+      *)
+        fail "coverage evidence of $kind $key points at a member that is not declared in $referenced_file: $referenced_member"
+        ;;
+    esac
+  done < <(printf '%s\n' "$coverage" | tr ',' '\n')
+
+  [[ "$found_reference" == 1 ]] || fail "coverage evidence of $kind $key is empty"
+}
+
+# Resolves how a coverage reference is declared in a source file. A reference is
+# only evidence when the name is declared as a type or as a method in the file: a
+# name that only occurs as a substring of another name or inside a comment is not
+# a declaration, and a method that is disabled by a `Skip = ...` attribute is not
+# a test that runs. Line comments are removed and block comments are tracked
+# across lines before the line is inspected, so text that a comment only mentions
+# or comments out can never be accepted as a declaration. The check stays line
+# oriented on purpose, so that it works with the text search tools available on
+# macOS; it recognizes the comment and literal delimiters of C#, not the full
+# grammar.
+member_declaration_state() {
+  local file_path="$1"
+  local member="$2"
+
+  awk -v member="$member" '
+    BEGIN {
+      single_quote = sprintf("%c", 39)
+    }
+    # Counts the double quotes that start at a position, which identifies a raw
+    # string delimiter (""" ... """) and its matching closing delimiter.
+    function quote_run(line, start,   count) {
+      count = 0
+      while (substr(line, start + count, 1) == "\"") {
+        count++
+      }
+      return count
+    }
+    # Removes comments from a source line and masks the contents of string and
+    # character literals, so that a comment delimiter inside a literal is not
+    # read as the start of a comment. Block comments are tracked across lines
+    # through in_block_comment.
+    function code_text(line,   text, position, line_length, character, next_character, literal_quote) {
+      text = ""
+      position = 1
+      line_length = length(line)
+      literal_quote = ""
+
+      while (position <= line_length) {
+        character = substr(line, position, 1)
+        next_character = substr(line, position + 1, 1)
+
+        if (in_raw_string > 0) {
+          if (quote_run(line, position) >= in_raw_string) {
+            position += in_raw_string
+            in_raw_string = 0
+          } else {
+            position++
+          }
+          continue
+        }
+
+        if (in_block_comment) {
+          if (character == "*" && next_character == "/") {
+            in_block_comment = 0
+            position += 2
+          } else {
+            position++
+          }
+          continue
+        }
+
+        if (literal_quote != "") {
+          if (character == "\\") {
+            position += 2
+          } else if (character == literal_quote) {
+            if (next_character == literal_quote) {
+              position += 2
+            } else {
+              literal_quote = ""
+              position++
+            }
+          } else {
+            position++
+          }
+          continue
+        }
+
+        if (character == "/" && next_character == "/") {
+          break
+        }
+
+        if (character == "/" && next_character == "*") {
+          in_block_comment = 1
+          position += 2
+          continue
+        }
+
+        if (character == "\"" && quote_run(line, position) >= 3) {
+          in_raw_string = quote_run(line, position)
+          position += in_raw_string
+          continue
+        }
+
+        if (character == "\"" || character == single_quote) {
+          literal_quote = character
+          position++
+          continue
+        }
+
+        text = text character
+        position++
+      }
+
+      return text
+    }
+    function is_type_declaration(line,   pattern) {
+      pattern = "^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*[[:space:]]+)*(class|struct|interface|enum|record([[:space:]]+(class|struct))?)[[:space:]]+" member "([^A-Za-z0-9_]|$)"
+      return line ~ pattern
+    }
+    function is_method_declaration(line,   pattern) {
+      pattern = "^[[:space:]]*(public|protected|private|internal)[[:space:]]+.*[^A-Za-z0-9_]" member "[[:space:]]*\\("
+      return line ~ pattern
+    }
+    {
+      line = code_text($0)
+
+      if (line ~ /^[[:space:]]*\[/ || in_attribute) {
+        attribute_text = attribute_text " " line
+        in_attribute = (line !~ /\][[:space:]]*$/)
+        next
+      }
+
+      if (line ~ /^[[:space:]]*$/) {
+        next
+      }
+
+      if (is_type_declaration(line)) {
+        print "declared"
+        exit 0
+      }
+
+      if (is_method_declaration(line)) {
+        if (attribute_text ~ /Skip[[:space:]]*=/) {
+          print "disabled"
+        } else {
+          print "declared"
+        }
+
+        exit 0
+      }
+
+      attribute_text = ""
+      in_attribute = 0
+    }' "$file_path"
+}
+
+# The validator is the only thing that keeps the ledger honest, so it is verified
+# against source fixtures that must be rejected before the ledger is audited.
+run_validator_negative_checks() {
+  local fixture_directory
+  fixture_directory="$(mktemp -d "${TMPDIR:-/tmp}/efcore10-audit-fixture.XXXXXX")" \
+    || fail "cannot create a temporary directory for the validator negative checks"
+
+  cat > "$fixture_directory/ReferenceFixture.cs" <<'FIXTURE'
+namespace AuditFixture;
+
+// Owned_json_comment_only_reference is only mentioned in this comment.
+
+public class LazyLoadProxyMySqlTestDerived
+{
+    public void Substring_reference_method_derived()
+    {
+    }
+}
+FIXTURE
+
+  cat > "$fixture_directory/CommentFixture.cs" <<'FIXTURE'
+namespace AuditFixture;
+
+// Block_comment_line_comment_reference is only mentioned in a line comment.
+
+/*
+public sealed class Block_comment_only_type_reference
+{
+    public void Block_comment_only_method_reference()
+    {
+    }
+}
+*/
+
+/*
+ * A decorated block comment still comments its content out:
+ *
+ *     public void Block_comment_only_indented_reference()
+ *     {
+ *     }
+ */
+
+/*
+[ConditionalFact(Skip = "the provider does not support this yet")]
+public void Block_comment_only_skip_reference()
+{
+}
+*/
+FIXTURE
+
+  cat > "$fixture_directory/DeclarationFixture.cs" <<'FIXTURE'
+namespace AuditFixture;
+
+public class DeclarationFixture
+{
+    /*
+     * [ConditionalFact(Skip = "the provider does not support this yet")]
+     */
+    public void Method_after_commented_out_skip_attribute()
+    {
+    }
+
+    /* An inline block comment in front of a real declaration. */ public void Method_after_inline_block_comment()
+    {
+    }
+
+    public void Method_before_comment_delimiters_in_string_literals()
+    {
+        var opener = "/*";
+        var terminator = "//";
+
+        AssertCommentFixture(opener, terminator);
+    }
+
+    public void Method_after_comment_delimiters_in_string_literals()
+    {
+    }
+
+    public void Method_before_raw_string_with_declaration_text()
+    {
+        var sql = """
+            public void Raw_string_declaration_reference()
+            {
+            }
+            """;
+    }
+
+    public void Method_after_raw_string_with_declaration_text()
+    {
+    }
+
+    private static void AssertCommentFixture(string opener, string terminator)
+    {
+    }
+}
+FIXTURE
+
+  cat > "$fixture_directory/DisabledFixture.cs" <<'FIXTURE'
+namespace AuditFixture;
+
+public class DisabledCoverageTest
+{
+    [ConditionalFact(Skip = "the provider does not support this yet")]
+    public void Disabled_coverage_method()
+    {
+    }
+
+    public void Enabled_coverage_method()
+    {
+    }
+}
+FIXTURE
+
+  cat > "$fixture_directory/DisabledCommentFixture.cs" <<'FIXTURE'
+namespace AuditFixture;
+
+public class DisabledCommentCoverageTest
+{
+    /* [ConditionalFact(Skip = "this commented-out skip must not disable anything")] */
+    [ConditionalFact(Skip = "the provider does not support this yet")]
+    public void Disabled_method_after_commented_out_skip()
+    {
+    }
+
+    [ConditionalFact(Skip = "the provider does not support this yet")]
+    /* A block comment between the attribute and the declaration. */
+    public void Disabled_method_with_intervening_block_comment()
+    {
+    }
+}
+FIXTURE
+
+  local state
+
+  state="$(member_declaration_state "$fixture_directory/ReferenceFixture.cs" "LazyLoadProxyMySqlTest")"
+  [[ -z "$state" ]] \
+    || fail "validator negative check failed: a substring of LazyLoadProxyMySqlTestDerived was accepted as a declaration"
+
+  state="$(member_declaration_state "$fixture_directory/ReferenceFixture.cs" "Owned_json_comment_only_reference")"
+  [[ -z "$state" ]] \
+    || fail "validator negative check failed: a name that only occurs in a comment was accepted as a declaration"
+
+  state="$(member_declaration_state "$fixture_directory/ReferenceFixture.cs" "Substring_reference_method")"
+  [[ -z "$state" ]] \
+    || fail "validator negative check failed: a substring of a method name was accepted as a declaration"
+
+  state="$(member_declaration_state "$fixture_directory/CommentFixture.cs" "Block_comment_line_comment_reference")"
+  [[ -z "$state" ]] \
+    || fail "validator negative check failed: a name that only occurs in a line comment was accepted as a declaration"
+
+  state="$(member_declaration_state "$fixture_directory/CommentFixture.cs" "Block_comment_only_type_reference")"
+  [[ -z "$state" ]] \
+    || fail "validator negative check failed: a type declared inside a multiline block comment was accepted as a declaration"
+
+  state="$(member_declaration_state "$fixture_directory/CommentFixture.cs" "Block_comment_only_method_reference")"
+  [[ -z "$state" ]] \
+    || fail "validator negative check failed: a method declared inside a multiline block comment was accepted as a declaration"
+
+  state="$(member_declaration_state "$fixture_directory/CommentFixture.cs" "Block_comment_only_skip_reference")"
+  [[ -z "$state" ]] \
+    || fail "validator negative check failed: a commented-out Skip attribute and method inside a block comment produced a state instead of being ignored (state=$state)"
+
+  state="$(member_declaration_state "$fixture_directory/CommentFixture.cs" "Block_comment_only_indented_reference")"
+  [[ -z "$state" ]] \
+    || fail "validator negative check failed: a declaration inside a decorated block comment was accepted as a declaration (state=$state)"
+
+  state="$(member_declaration_state "$fixture_directory/DisabledFixture.cs" "Disabled_coverage_method")"
+  [[ "$state" == "disabled" ]] \
+    || fail "validator negative check failed: a method that is disabled by a Skip attribute was not rejected (state=$state)"
+
+  state="$(member_declaration_state "$fixture_directory/DisabledCommentFixture.cs" "Disabled_method_after_commented_out_skip")"
+  [[ "$state" == "disabled" ]] \
+    || fail "validator negative check failed: a real Skip attribute after a commented-out one was not rejected (state=$state)"
+
+  state="$(member_declaration_state "$fixture_directory/DisabledCommentFixture.cs" "Disabled_method_with_intervening_block_comment")"
+  [[ "$state" == "disabled" ]] \
+    || fail "validator negative check failed: a block comment between a Skip attribute and its method dropped the disabled state (state=$state)"
+
+  state="$(member_declaration_state "$fixture_directory/ReferenceFixture.cs" "LazyLoadProxyMySqlTestDerived")"
+  [[ "$state" == "declared" ]] \
+    || fail "validator negative check failed: a real type declaration was not accepted (state=$state)"
+
+  state="$(member_declaration_state "$fixture_directory/DisabledFixture.cs" "Enabled_coverage_method")"
+  [[ "$state" == "declared" ]] \
+    || fail "validator negative check failed: an enabled method next to a disabled one was not accepted (state=$state)"
+
+  state="$(member_declaration_state "$fixture_directory/DeclarationFixture.cs" "Method_after_commented_out_skip_attribute")"
+  [[ "$state" == "declared" ]] \
+    || fail "validator negative check failed: a real method after a commented-out Skip attribute was not accepted (state=$state)"
+
+  state="$(member_declaration_state "$fixture_directory/DeclarationFixture.cs" "Method_after_inline_block_comment")"
+  [[ "$state" == "declared" ]] \
+    || fail "validator negative check failed: a real method after an inline block comment was not accepted (state=$state)"
+
+  state="$(member_declaration_state "$fixture_directory/DeclarationFixture.cs" "Method_after_comment_delimiters_in_string_literals")"
+  [[ "$state" == "declared" ]] \
+    || fail "validator negative check failed: a real method after comment delimiters inside string literals was not accepted (state=$state)"
+
+  state="$(member_declaration_state "$fixture_directory/DeclarationFixture.cs" "Raw_string_declaration_reference")"
+  [[ -z "$state" ]] \
+    || fail "validator negative check failed: a declaration-shaped line inside a raw string literal was accepted as a declaration (state=$state)"
+
+  state="$(member_declaration_state "$fixture_directory/DeclarationFixture.cs" "Method_after_raw_string_with_declaration_text")"
+  [[ "$state" == "declared" ]] \
+    || fail "validator negative check failed: a real method after a raw string literal was not accepted (state=$state)"
+
+  rm -rf "$fixture_directory"
+
+  printf 'Validator negative checks passed: substring, line-comment, block-comment and disabled declarations are rejected.\n'
+}
+
+validate_deferred() {
+  local kind="$1"
+  local key="$2"
+  local reference="$3"
+  local deferred="$4"
+  local coverage="$5"
+
+  deferred="$(trim "$deferred")"
+
+  [[ -n "$deferred" ]] || fail "missing deferred scope for $kind $key"
+
+  local deferred_word_count
+  deferred_word_count="$(printf '%s\n' "$deferred" | awk '{ print NF }')"
+  [[ "$deferred_word_count" -ge 8 ]] \
+    || fail "deferred scope of $kind $key is too vague to audit: $deferred"
+
+  if printf '%s' "$deferred" | grep -E -i -q 'needs reconciliation|where supported|as appropriate|as needed|\btbd\b|\btodo\b|\bn/a\b|unclear|not applicable|\betc\.'; then
+    fail "deferred scope of $kind $key only rephrases the deferral: $deferred"
+  fi
+
+  grep -F -q -- "$reference" <<< "$deferred" \
+    || fail "deferred scope of $kind $key does not repeat its follow-up identifier: $reference"
+
+  if [[ "$(trim "$coverage")" == "none" ]]; then
+    grep -F -q -- "uncovered" <<< "$deferred" \
+      || fail "deferred scope of $kind $key must state that the behavior area is uncovered"
+  fi
+}
+
+run_validator_negative_checks
+
+seen_deferred_scopes=()
+
 # The table is deliberately machine-readable, but the document remains the
 # source of the explanation and evidence for each entry.
-while IFS='|' read -r _ kind key category owner reference _; do
+while IFS=$'\t' read -r kind key category owner reference coverage deferred; do
   kind="$(trim "${kind:-}")"
-  [[ "$kind" == base || "$kind" == method ]] || continue
-  key="$(trim "${key:-}")"
-  category="$(trim "${category:-}")"
-  owner="$(trim "${owner:-}")"
-  reference="$(trim "${reference:-}")"
 
   [[ -n "$key" ]] || fail "ledger row has no stable source key"
   is_valid_category "$category" || fail "invalid category for $kind $key: $category"
   [[ -n "$owner" && "$owner" != "-" ]] || fail "missing owner for $kind $key"
   [[ -n "$reference" && "$reference" != "-" ]] || fail "missing follow-up/reference for $kind $key"
-done < "$ledger_file"
+
+  validate_coverage "$kind" "$key" "$coverage"
+  validate_deferred "$kind" "$key" "$reference" "$deferred" "$coverage"
+
+  for seen_scope in ${seen_deferred_scopes[@]+"${seen_deferred_scopes[@]}"}; do
+    [[ "$seen_scope" != "$(trim "$deferred")" ]] \
+      || fail "two ledger rows share the same deferred scope wording: $kind $key"
+  done
+
+  seen_deferred_scopes+=("$(trim "$deferred")")
+done < <(awk -F'|' '
+  {
+    kind_value = $2
+    gsub(/^[[:space:]]+|[[:space:]]+$/, "", kind_value)
+    if (kind_value != "base" && kind_value != "method") {
+      next
+    }
+    if (NF < 8) {
+      print kind_value "\tMALFORMED\t\t\t\t"
+      next
+    }
+    for (field_index = 2; field_index < NF; field_index++) {
+      value = $field_index
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      row[field_index - 1] = value
+    }
+    evidence_value = row[6]
+    deferred_value = ""
+    coverage_value = ""
+    if (match(evidence_value, /coverage=/)) {
+      coverage_value = substr(evidence_value, RSTART + 9)
+      gsub(/;.*$/, "", coverage_value)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", coverage_value)
+    }
+    if (match(evidence_value, /deferred=/)) {
+      deferred_value = substr(evidence_value, RSTART + 9)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", deferred_value)
+    }
+    print row[1] "\t" row[2] "\t" row[3] "\t" row[4] "\t" row[5] "\t" coverage_value "\t" deferred_value
+  }' "$ledger_file")
 
 base_types_text="$(awk '
   /EF10-SPEC-DEFERRALS/ { in_block = 1 }

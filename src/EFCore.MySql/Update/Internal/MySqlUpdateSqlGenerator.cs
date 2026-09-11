@@ -139,6 +139,19 @@ namespace Pomelo.EntityFrameworkCore.MySql.Update.Internal
             }
         }
 
+        public override ResultSetMapping AppendUpdateOperation(
+            StringBuilder commandStringBuilder,
+            IReadOnlyModificationCommand command,
+            int commandPosition,
+            out bool requiresTransaction)
+        {
+            // The JSON paths of JSON column updates are resolved from the model here, because EF Core joins the
+            // JSON names of an update path with dots, and the update SQL is generated below this method.
+            using var jsonPathScope = MySqlJsonPathHelper.BeginUpdateJsonPathScope(command);
+
+            return base.AppendUpdateOperation(commandStringBuilder, command, commandPosition, out requiresTransaction);
+        }
+
         public override ResultSetMapping AppendDeleteOperation(StringBuilder commandStringBuilder,
             IReadOnlyModificationCommand command,
             int commandPosition,
@@ -180,13 +193,33 @@ namespace Pomelo.EntityFrameworkCore.MySql.Update.Internal
             stringBuilder.Append("JSON_SET(");
             updateSqlGeneratorHelper.DelimitIdentifier(stringBuilder, columnModification.ColumnName);
             stringBuilder.Append(", ");
+
+            // JSON property names that contain e.g. a dot, a double quote or a backslash must be quoted within
+            // the JSON path, which is different from escaping the SQL string literal itself. The path was
+            // resolved from the model, because EF Core joins the JSON names of an update path with dots.
             stringBuilder.Append(
                 MySqlStringTypeMapping.EscapeSqlLiteralWithLineBreaks(
-                    columnModification.JsonPath,
+                    MySqlJsonPathHelper.TryGetUpdateJsonPath(columnModification, out var jsonPath)
+                        ? jsonPath
+                        : columnModification.JsonPath,
                     !_options.NoBackslashEscapes,
                     _options.ReplaceLineBreaksWithCharFunction));
             stringBuilder.Append(", ");
-            base.AppendUpdateColumnValue(updateSqlGeneratorHelper, columnModification, stringBuilder, name, schema);
+
+            if (columnModification.Property is null)
+            {
+                // EF Core serialized a whole JSON document (a nested owned entity, a complex type or a
+                // collection) into the value. A string argument would be stored as a JSON string instead of
+                // a JSON document, so the value is explicitly parsed first.
+                stringBuilder.Append("JSON_EXTRACT(");
+                base.AppendUpdateColumnValue(updateSqlGeneratorHelper, columnModification, stringBuilder, name, schema);
+                stringBuilder.Append(", '$')");
+            }
+            else
+            {
+                base.AppendUpdateColumnValue(updateSqlGeneratorHelper, columnModification, stringBuilder, name, schema);
+            }
+
             stringBuilder.Append(")");
         }
 

@@ -13,8 +13,10 @@ using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Utilities;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure.Internal;
 using Pomelo.EntityFrameworkCore.MySql.Query.Expressions.Internal;
+using Pomelo.EntityFrameworkCore.MySql.Storage.Internal;
 using Pomelo.EntityFrameworkCore.MySql.Query.ExpressionTranslators.Internal;
 
 namespace Pomelo.EntityFrameworkCore.MySql.Query.ExpressionVisitors.Internal
@@ -486,6 +488,44 @@ namespace Pomelo.EntityFrameworkCore.MySql.Query.ExpressionVisitors.Internal
             var jsonFunctionName = useJsonValue ? "JSON_VALUE" : "JSON_UNQUOTE(JSON_EXTRACT";
             string castStoreType = null;
 
+            if (IsJsonBoolean(jsonScalarExpression.TypeMapping))
+            {
+                if (useJsonValue)
+                {
+                    // A JSON boolean is stored as the JSON literal true or false. JSON_VALUE() returns those
+                    // literals as the strings 'true' and 'false' on MySQL, so casting the result to a number
+                    // would always yield 0. MariaDB returns 1 and 0 for JSON booleans, so the numeric conversion
+                    // is kept there, which also preserves the NULL results for JSON null and missing members.
+                    if (_options.ServerVersion.Type == ServerType.MySql)
+                    {
+                        // The comparison is parenthesized, because the JSON scalar is a boolean expression here
+                        // and the surrounding SQL expects an atomic operand (e.g. for `A == B` comparisons).
+                        Sql.Append("(JSON_VALUE(");
+                        Visit(jsonScalarExpression.Json);
+                        Sql.Append(", ");
+                        GenerateJsonPath(jsonScalarExpression.Path);
+                        Sql.Append(") = 'true')");
+
+                        return jsonScalarExpression;
+                    }
+                }
+                else
+                {
+                    // Without JSON_VALUE() (e.g. MySQL 5.7 or a path that has to be built at runtime),
+                    // JSON_UNQUOTE() returns the strings 'true', 'false' and 'null' for the JSON literals
+                    // true, false and null, so the numeric cast would yield 0 for true and would turn a
+                    // JSON null value into the number 0. The comparison is restricted to JSON booleans and
+                    // yields NULL for every other value, which keeps JSON null values NULL.
+                    Sql.Append("CASE WHEN JSON_TYPE(");
+                    GenerateJsonExtract(jsonScalarExpression);
+                    Sql.Append(") = 'BOOLEAN' THEN JSON_UNQUOTE(");
+                    GenerateJsonExtract(jsonScalarExpression);
+                    Sql.Append(") = 'true' ELSE NULL END");
+
+                    return jsonScalarExpression;
+                }
+            }
+
             // if (/*jsonScalarExpression.TypeMapping is SqlServerJsonTypeMapping
             //     ||*/ jsonScalarExpression.TypeMapping?.ElementTypeMapping is not null)
             // {
@@ -757,6 +797,22 @@ namespace Pomelo.EntityFrameworkCore.MySql.Query.ExpressionVisitors.Internal
             return sqlUnaryExpression;
         }
 
+        private static bool IsJsonBoolean(RelationalTypeMapping typeMapping)
+        {
+            var providerClrType = (typeMapping.Converter?.ProviderClrType ?? typeMapping.ClrType)?.UnwrapNullableType();
+
+            return providerClrType == typeof(bool);
+        }
+
+        private void GenerateJsonExtract(JsonScalarExpression jsonScalarExpression)
+        {
+            Sql.Append("JSON_EXTRACT(");
+            Visit(jsonScalarExpression.Json);
+            Sql.Append(", ");
+            GenerateJsonPath(jsonScalarExpression.Path);
+            Sql.Append(")");
+        }
+
         private string GetCastStoreType(RelationalTypeMapping typeMapping)
         {
             var storeTypeLower = typeMapping.StoreType.ToLower();
@@ -978,7 +1034,15 @@ namespace Pomelo.EntityFrameworkCore.MySql.Query.ExpressionVisitors.Internal
                 switch (pathSegment)
                 {
                     case { PropertyName: string propertyName }:
-                        Sql.Append(".").Append(propertyName);
+                        // A property name that contains e.g. a dot, a double quote or a backslash must be
+                        // quoted within the JSON path, and the resulting path text must be escaped for the
+                        // SQL string literal it is embedded in.
+                        Sql
+                            .Append(".")
+                            .Append(
+                                MySqlStringTypeMapping.EscapeSqlLiteral(
+                                    MySqlJsonPathHelper.EscapePropertyName(propertyName),
+                                    !_options.NoBackslashEscapes));
                         break;
 
                     case { ArrayIndex: SqlExpression arrayIndex }:
