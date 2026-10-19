@@ -2,6 +2,8 @@
 
 Decision date: 2026-10-19. Keep this fork as a contribution workspace and target new, scoped changes at [microting/Pomelo.EntityFrameworkCore.MySql](https://github.com/microting/Pomelo.EntityFrameworkCore.MySql). Do not delete or archive the fork while work remains. [ADR 0005](../adr/0005-contribute-incrementally-to-microting.md) records the change in contribution destination.
 
+These documentation changes are published on `codex/efcore10-support`. Updating the fork's default `main` branch awaits explicit approval; the provider code on `main` is unchanged.
+
 ## Preserved work
 
 - `codex/backup-efcore10-20261019` preserves implementation commit `67fc65ab9cd323a83efd4211c33291fe770ca25c`, including the previously unpushed JSON follow-up. Backup does not imply that the follow-up passed the remote matrix.

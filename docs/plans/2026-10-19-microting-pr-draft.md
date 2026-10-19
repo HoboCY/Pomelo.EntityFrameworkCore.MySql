@@ -4,7 +4,7 @@ Target: `microting/Pomelo.EntityFrameworkCore.MySql:master`.
 Head: `HoboCY:codex/microting-parameterized-collections` at `bc823206`.
 Submission state: prepared; create as a draft after GitHub authentication is available.
 
-+Captured primitive collections used with `EnablePrimitiveCollectionsSupport()` and `UseParameterizedCollectionMode(ParameterTranslationMode.Parameter)` currently fail during query translation with `Expression '@ids' in the SQL tree does not have a type mapping assigned`.
+Captured primitive collections used with `EnablePrimitiveCollectionsSupport()` and `UseParameterizedCollectionMode(ParameterTranslationMode.Parameter)` currently fail during query translation with `Expression '@ids' in the SQL tree does not have a type mapping assigned`.
 
 Apply the inferred element mapping to the collection parameter and the `JSON_TABLE` value column through a provider type-mapping postprocessor. The regression test executes the same public `DbContext` query with changed values, an empty collection, and a nonempty collection again; it covers both empty and nonempty first execution.
 
