@@ -47,5 +47,11 @@ namespace Microting.EntityFrameworkCore.MySql.Query.ExpressionVisitors.Internal
 
             return query;
         }
+
+        protected override Expression ProcessTypeMappings(Expression expression)
+            => new MySqlTypeMappingPostprocessor(
+                Dependencies,
+                RelationalDependencies,
+                RelationalQueryCompilationContext).Process(expression);
     }
 }
