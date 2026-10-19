@@ -1,6 +1,6 @@
 # Issue tracker: GitHub
 
-Issues and PRDs for this working fork live in `HoboCY/Pomelo.EntityFrameworkCore.MySql` GitHub Issues. Use the `gh` CLI for all issue operations and explicitly target the fork. Implementation pull requests are submitted separately to `PomeloFoundation/Pomelo.EntityFrameworkCore.MySql`.
+Issues and PRDs for this working fork live in `HoboCY/Pomelo.EntityFrameworkCore.MySql` GitHub Issues. Use the `gh` CLI for all issue operations and explicitly target the fork. New implementation pull requests target `microting/Pomelo.EntityFrameworkCore.MySql:master`. Existing PomeloFoundation PR #2048 remains a separate historical contribution; see ADR 0005.
 
 ## Conventions
 
@@ -11,7 +11,7 @@ Issues and PRDs for this working fork live in `HoboCY/Pomelo.EntityFrameworkCore
 - **Apply / remove labels**: `gh issue edit <number> --repo HoboCY/Pomelo.EntityFrameworkCore.MySql --add-label "..."` / `--remove-label "..."`
 - **Close**: `gh issue close <number> --repo HoboCY/Pomelo.EntityFrameworkCore.MySql --comment "..."`
 
-Always pass `--repo HoboCY/Pomelo.EntityFrameworkCore.MySql` for issue operations. The local `origin` currently points to that fork, but skills must still use the explicit repository name. Use `PomeloFoundation/Pomelo.EntityFrameworkCore.MySql` only for upstream pull-request operations.
+Always pass `--repo HoboCY/Pomelo.EntityFrameworkCore.MySql` for issue operations. The local `origin` currently points to that fork, but skills must still use the explicit repository name. Use `microting/Pomelo.EntityFrameworkCore.MySql` for new contribution PRs. Use `PomeloFoundation/Pomelo.EntityFrameworkCore.MySql` only when explicitly inspecting or updating the existing official-upstream contributions.
 
 ## Pull requests as a triage surface
 
@@ -19,11 +19,11 @@ Always pass `--repo HoboCY/Pomelo.EntityFrameworkCore.MySql` for issue operation
 
 When set to `yes`, PRs run through the same labels and states as issues, using the `gh pr` equivalents:
 
-- **Read a PR**: `gh pr view <number> --repo PomeloFoundation/Pomelo.EntityFrameworkCore.MySql --comments` and `gh pr diff <number> --repo PomeloFoundation/Pomelo.EntityFrameworkCore.MySql`.
-- **List external PRs for triage**: `gh pr list --repo PomeloFoundation/Pomelo.EntityFrameworkCore.MySql --state open --json number,title,body,labels,author,authorAssociation,comments`, then keep only `authorAssociation` of `CONTRIBUTOR`, `FIRST_TIME_CONTRIBUTOR`, or `NONE`.
-- **Comment / label / close**: use `gh pr comment`, `gh pr edit`, or `gh pr close` with `--repo PomeloFoundation/Pomelo.EntityFrameworkCore.MySql`.
+- **Read a PR**: `gh pr view <number> --repo microting/Pomelo.EntityFrameworkCore.MySql --comments` and `gh pr diff <number> --repo microting/Pomelo.EntityFrameworkCore.MySql`.
+- **List external PRs for triage**: `gh pr list --repo microting/Pomelo.EntityFrameworkCore.MySql --state open --json number,title,body,labels,author,authorAssociation,comments`, then keep only `authorAssociation` of `CONTRIBUTOR`, `FIRST_TIME_CONTRIBUTOR`, or `NONE`.
+- **Comment / label / close**: use `gh pr comment`, `gh pr edit`, or `gh pr close` with `--repo microting/Pomelo.EntityFrameworkCore.MySql`.
 
-The fork's issues and upstream's pull requests use different number spaces. Treat a bare `#42` as `HoboCY/Pomelo.EntityFrameworkCore.MySql#42`; require an explicit `PR #42` or repository name before reading an upstream pull request.
+The fork's issues, Microting pull requests and PomeloFoundation pull requests use different number spaces. Treat a bare `#42` as `HoboCY/Pomelo.EntityFrameworkCore.MySql#42`; require an explicit `PR #42` or repository name before reading an upstream pull request.
 
 ## When a skill says "publish to the issue tracker"
 

@@ -1,5 +1,7 @@
 # Pomelo.EntityFrameworkCore.MySql
 
+> **HoboCY contribution fork:** New development is focused on contributing fixes and tests to [Microting's maintained fork](https://github.com/microting/Pomelo.EntityFrameworkCore.MySql). This repository remains available for contribution branches and the existing EF Core 10 work; it is not an independent package release channel. See the [transition record](docs/plans/2026-10-19-microting-contribution.md) and [issue #12](https://github.com/HoboCY/Pomelo.EntityFrameworkCore.MySql/issues/12). The provider information below is retained from the original Pomelo upstream.
+
 [![Build status](https://github.com/PomeloFoundation/Pomelo.EntityFrameworkCore.MySql/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/PomeloFoundation/Pomelo.EntityFrameworkCore.MySql/actions/workflows/build.yml)
 [![Stable release feed for official builds](https://img.shields.io/nuget/v/Pomelo.EntityFrameworkCore.MySql.svg?style=flat-square&label=Stable)](https://www.nuget.org/packages/Pomelo.EntityFrameworkCore.MySql/) [![Prerelease feed for official builds](https://img.shields.io/nuget/vpre/Pomelo.EntityFrameworkCore.MySql.svg?style=flat-square&label=Prerelease)](https://www.nuget.org/packages/Pomelo.EntityFrameworkCore.MySql/)
 [![Nightly build feed for release builds](https://img.shields.io/myget/pomelo/vpre/Pomelo.EntityFrameworkCore.MySql.svg?label=Nightly)](https://www.myget.org/feed/pomelo/package/nuget/Pomelo.EntityFrameworkCore.MySql)

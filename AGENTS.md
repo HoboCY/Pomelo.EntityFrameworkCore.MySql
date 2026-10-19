@@ -2,7 +2,7 @@
 
 ### Issue tracker
 
-Issues and PRDs are tracked in `HoboCY/Pomelo.EntityFrameworkCore.MySql` GitHub Issues. Implementation pull requests target `PomeloFoundation/Pomelo.EntityFrameworkCore.MySql`. See `docs/agents/issue-tracker.md`.
+Issues and PRDs are tracked in `HoboCY/Pomelo.EntityFrameworkCore.MySql` GitHub Issues. New implementation pull requests target `microting/Pomelo.EntityFrameworkCore.MySql`; preserve the existing PomeloFoundation contributions. See `docs/agents/issue-tracker.md` and `docs/adr/0005-contribute-incrementally-to-microting.md`.
 
 ### Triage labels
 
