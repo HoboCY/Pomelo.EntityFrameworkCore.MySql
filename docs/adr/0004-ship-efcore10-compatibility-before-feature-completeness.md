@@ -1,0 +1,3 @@
+# Ship EF Core 10 compatibility before feature completeness
+
+Pomelo 10.0.0 will be a compatibility-first release: existing Pomelo 9 public capabilities must continue to work on EF Core 10, and provider API, query, migration, relational, and structural JSON adaptations required by that contract must be production-ready. New EF Core 10 feature families may be deferred when they are outside this initial contract, but each deferral must be explicit and traceable; native MySQL/MariaDB limitations may use narrowly justified skips, while blanket ignored test suites cannot be used to imply unsupported features are complete.
